@@ -1,74 +1,49 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
+project(fracture)
 
-# set the project name
-project(BFX)
+list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-# specify the C++ standard
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+# Libigl
+include(libigl)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
+# Enable the target igl::glfw
+igl_include(glfw)
+# Other modules you could enable
+#igl_include(embree)
+igl_include(imgui)
+igl_include(opengl)
+#igl_include(stb)
+#igl_include(predicates)
+#igl_include(xml)
+#igl_include(copyleft cgal)
+#igl_include(copyleft comiso)
+#igl_include(copyleft core)
+#igl_include(copyleft cork)
+igl_include(copyleft tetgen)
+#igl_include(restricted matlab)
+#igl_include(restricted mosek)
+#igl_include(restricted triangle)
 
-# Set up libraries
+# Add your project files
+file(GLOB SRC_FILES *.cpp)
+add_executable(${PROJECT_NAME} ${SRC_FILES})
 
-add_library(particle STATIC
-    ./src/animation/aParticle.h
-    ./src/animation/aParticle.cpp
-    ./src/animation/aParticleSystem.h
-    ./src/animation/aParticleSystem.cpp
-)
-
-target_include_directories(particle PUBLIC
-    ./3rdparty/eigen-3.2.8
-    ./3rdparty/glm
-    ./src/animation
-)
-
-# Set up executables/viewers
-# Find OpenGL
-find_package(OpenGL REQUIRED)
-
-# Add GLFW
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-add_subdirectory(./3rdparty/glfw-3.3.2)
-
-# Add GLAD
-add_subdirectory(./3rdparty/glad)
-
-# Add ImGUI
-add_subdirectory(./3rdparty/imgui-1.77)
-
-# Add tinyobj
-add_library(tinyobj STATIC
-    ./3rdparty/tinyobj/tiny_obj_loader.h
-    ./3rdparty/tinyobj/tiny_obj_loader.cc
-)
-
-add_executable(ParticleViewer
-    ./src/viewer/particleMain.cpp
-    ./src/viewer/particleViewer.h
-    ./src/viewer/particleViewer.cpp
-    ./src/viewer/camera.cpp
-    ./src/viewer/camera.h
-    ./src/viewer/objmodel.h
-    ./src/viewer/objmodel.cpp
-    ./src/viewer/shader.h
-    ./src/viewer/viewer.cpp
-    ./src/viewer/viewer.h
-    ./src/viewer/drawable.h
-    ./src/viewer/drawable.cpp
-)
-
-target_include_directories(ParticleViewer PUBLIC 
-    ./src/viewer
-    ./src/animation
-    ./3rdparty/imgui-1.77
-    ./3rdparty/glm
-    ./3rdparty/tinyobj
-)
-
-target_link_libraries(ParticleViewer PUBLIC particle glad glfw imgui tinyobj)
+# Link igl (and the glfw module) to your project
+target_link_libraries(${PROJECT_NAME} PUBLIC 
+  igl::glfw
+  ## Other modules you could link to
+  # igl::embree
+  igl::imgui
+  igl::opengl
+  # igl::stb
+  # igl::predicates
+  # igl::xml
+  # igl_copyleft::cgal
+  # igl_copyleft::comiso
+  # igl_copyleft::core
+  # igl_copyleft::cork
+  igl_copyleft::tetgen
+  # igl_restricted::matlab
+  # igl_restricted::mosek
+  # igl_restricted::triangle
+  )
