@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     1,7,3).finished();*/
 
     // Load a surface mesh
-    igl::readOBJ("../mesh/pumpkin.obj", V, F);
+    igl::readOBJ("../mesh/cube.obj", V, F);
 
   // Tetrahedralize the interior
   igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.414Y", TV, TT, TF);
