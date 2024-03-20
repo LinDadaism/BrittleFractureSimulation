@@ -46,4 +46,16 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   # igl_restricted::matlab
   # igl_restricted::mosek
   # igl_restricted::triangle
-  )
+)
+
+# ==============================================================================
+# GEOGRAM
+# ==============================================================================
+
+find_package(Geogram REQUIRED)
+message(STATUS "Geogram: ${GEOGRAM_LIBRARY}, ${GEOGRAM_INCLUDE_DIR}")
+
+target_link_libraries(${PROJECT_NAME} PRIVATE Geogram::geogram)
+
+set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
+  CACHE STRING "Vcpkg toolchain file")
