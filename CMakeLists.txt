@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 project(fracture)
 
+set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
+  CACHE STRING "Vcpkg toolchain file")
+
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Libigl
@@ -51,11 +54,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 # ==============================================================================
 # GEOGRAM
 # ==============================================================================
-
+include(C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake)
 find_package(Geogram REQUIRED)
 message(STATUS "Geogram: ${GEOGRAM_LIBRARY}, ${GEOGRAM_INCLUDE_DIR}")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Geogram::geogram)
-
-set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
-  CACHE STRING "Vcpkg toolchain file")
