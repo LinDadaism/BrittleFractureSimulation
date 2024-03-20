@@ -6,26 +6,31 @@
 
 #include <igl/copyleft/tetgen/tetrahedralize.h>
 #include <igl/readOBJ.h>
+#include <igl/readPLY.h>
+#include <igl/readSTL.h>
 #include <igl/barycenter.h>
 #include <iostream>
 
+using namespace std;
+using namespace Eigen;
+
+#define DEBUG 0
+
 // Input polygon
-Eigen::MatrixXd V;
-Eigen::MatrixXi F;
-Eigen::MatrixXd B;
+Eigen::MatrixXd V; // #V by 3 matrix for vertices
+Eigen::MatrixXi F; // matrix for face indices
+Eigen::MatrixXd B; // matrix for barycenters
+Eigen::MatrixXd N; // matrix for normals
 
 // Tetrahedralized interior
-Eigen::MatrixXd TV;
-Eigen::MatrixXi TT;
-Eigen::MatrixXi TF;
+Eigen::MatrixXd TV; // #TV by 3 matrix for vertex positions
+Eigen::MatrixXi TT; // #TT by 4 matrix for tet face indices
+Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `boundary_facets` is called on TT)
 
 // Helper func, called every time a keyboard button is pressed
 // Slice model at various percentage to view internal tetrahedral structure
 bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier)
 {
-    using namespace std;
-    using namespace Eigen;
-
     if (key >= '1' && key <= '9')
     {
         double t = double((key - '1') + 1) / 9.0;
@@ -41,6 +46,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 
         MatrixXd V_temp(s.size() * 4, 3);
         MatrixXi F_temp(s.size() * 4, 3);
+        MatrixXd B_temp(s.size(), 3);
 
         for (unsigned i = 0; i < s.size(); ++i)
         {
@@ -52,10 +58,16 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
             F_temp.row(i * 4 + 1) << (i * 4) + 0, (i * 4) + 2, (i * 4) + 1;
             F_temp.row(i * 4 + 2) << (i * 4) + 3, (i * 4) + 2, (i * 4) + 0;
             F_temp.row(i * 4 + 3) << (i * 4) + 1, (i * 4) + 2, (i * 4) + 3;
+            B_temp.row(i) = (TV.row(TT(s[i], 0)) +
+                TV.row(TT(s[i], 1)) +
+                TV.row(TT(s[i], 2)) +
+                TV.row(TT(s[i], 3))) / 4;
         }
 
         viewer.data().clear();
         viewer.data().set_mesh(V_temp, F_temp);
+        viewer.data().add_points(B_temp, Eigen::RowVector3d(1, 0, 0));
+        viewer.data().point_size = 10.0; // default is 30
         viewer.data().set_face_based(true);
     }
 
@@ -89,13 +101,21 @@ int main(int argc, char *argv[])
     1,7,3).finished();*/
 
     // Load a surface mesh
-    igl::readOBJ("../mesh/cube.obj", V, F);
+    igl::readOBJ("../assets/cube.obj", V, F);
+    //igl::readPLY("../assets/Armadillo.ply", V, F);
+    
+    //string filePath = "../assets/bunny.stl";
+    //ifstream stlAscii(filePath);
+    //if (stlAscii.is_open()) {
+    //    igl::readSTL(stlAscii, V, F, N);
+    //}
 
   // Tetrahedralize the interior
   igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.414Y", TV, TT, TF);
 
   // Compute barycenters
   igl::barycenter(TV, TT, B);
+  std::cout << "#row: " << B.rows() << "#col: " << B.cols() << std::endl;
 
   // Init the viewer
   igl::opengl::glfw::Viewer viewer;
@@ -153,9 +173,14 @@ int main(int argc, char *argv[])
       };
 
   // Plot the mesh
-  //viewer.data().set_mesh(V, F);
-  //viewer.data().set_face_based(true);
+#if DEBUG
   viewer.callback_key_down = &key_down;
   key_down(viewer, '5', 0); // start off with 50% percentage of model cut
+#else
+  viewer.data().set_mesh(TV, TF);
+  viewer.data().set_face_based(true);
+  viewer.data().add_points(B, Eigen::RowVector3d(1, 0, 0));
+  viewer.data().point_size = 10.0; // default is 30
+#endif
   viewer.launch();
 }

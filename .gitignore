@@ -2,7 +2,12 @@
 *.slo
 *.lo
 *.o
-# *.obj
+Armadillo.ply
+armadillo.ply
+Armadillo.obj
+armadillo.obj
+Armadillo.stl
+armadillo.stl
 
 # Precompiled Headers
 *.gch
