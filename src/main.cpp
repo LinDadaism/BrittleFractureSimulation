@@ -34,7 +34,7 @@ Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `bou
 
 // Voronoi diagram
 bool periodic = false;
-int numPoints = 3;
+int numPoints = 8;
 vector<Eigen::Vector3d> points;
 vector<vector<Eigen::Vector3d>> cellVertices; // TODO: user Eigen Matrix for 2d arrays
 vector<vector<vector<int>>> cellFaces;
