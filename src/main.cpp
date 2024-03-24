@@ -25,7 +25,7 @@ Eigen::MatrixXd V; // #V by 3 matrix for vertices
 Eigen::MatrixXi F; // matrix for face indices
 Eigen::MatrixXd B; // matrix for barycenters
 Eigen::MatrixXd N; // matrix for normals
-Eigen::Vector3d minCorner, maxCorner;
+Eigen::Vector3d minCorner, maxCorner; // min and max corners of mesh's bounding box
 
 // Tetrahedralized interior
 Eigen::MatrixXd TV; // #TV by 3 matrix for vertex positions
@@ -39,6 +39,9 @@ vector<Eigen::Vector3d> points;
 vector<vector<Eigen::Vector3d>> cellVertices; // TODO: user Eigen Matrix for 2d arrays
 vector<vector<vector<int>>> cellFaces;
 vector<Eigen::MatrixXi> cellEdges;
+
+// other global variables
+char currKey = '0';
 
 Eigen::MatrixXd convertToMatrixXd2D(const vector<vector<Eigen::Vector3d>>& vectorOfVectors) {
     // First, calculate the total number of rows required in the matrix
@@ -157,6 +160,8 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
 bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
     using namespace Eigen;
 
+    currKey = key; // keep a global record
+
     if (key == '0')
     {
         viewer.data().clear();
@@ -213,6 +218,25 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     return false;
 }
 
+void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
+{
+    points.clear();
+
+// TODO: can look into https://doc.cgal.org/latest/Generator/Generator_2random_points_in_tetrahedral_mesh_3_8cpp-example.html#_a9
+    std::random_device rd;  // Obtain random number from hardware and seed the generator
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> disX(minCorner.x(), maxCorner.x());
+    std::uniform_real_distribution<> disY(minCorner.y(), maxCorner.y());
+    std::uniform_real_distribution<> disZ(minCorner.z(), maxCorner.z());
+
+    for (int i = 0; i < numPoints; ++i) {
+        double x = disX(gen);
+        double y = disY(gen);
+        double z = disZ(gen);
+        points.push_back(Eigen::Vector3d(x, y, z));
+    }
+}
+
 void computeVoronoiCells(
     const vector<Eigen::Vector3d>& points,
     const Eigen::Vector3d& minCorner,
@@ -221,6 +245,10 @@ void computeVoronoiCells(
     vector<vector<vector<int>>>& cellFaces, // Each cell's faces by vertex indices
     vector<Eigen::MatrixXi>& cellEdges // Each cell's edges
 ) {
+    // fully clear nested vectors
+    cellVertices.clear();
+    cellFaces.clear();
+    cellEdges.clear();
 
     // Initialize container
     voro::container con(
@@ -320,7 +348,7 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = "../assets/dodecahedron.obj";// "../assets/bunny.stl"; // "../assets/Armadillo.ply"
+    string filePath = "../assets/cube.obj";// "../assets/bunny.stl"; // "../assets/Armadillo.ply"
     igl::readOBJ(filePath, V, F);
     //igl::readPLY(filePath, V, F);
     
@@ -344,21 +372,7 @@ int main(int argc, char *argv[])
   minCorner = V.colwise().minCoeff();
   maxCorner = V.colwise().maxCoeff();
 
-  // Generate random points
-  // TODO: can look into https://doc.cgal.org/latest/Generator/Generator_2random_points_in_tetrahedral_mesh_3_8cpp-example.html#_a9
-  std::random_device rd;  // Obtain random number from hardware and seed the generator
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<> disX(minCorner.x(), maxCorner.x());
-  std::uniform_real_distribution<> disY(minCorner.y(), maxCorner.y());
-  std::uniform_real_distribution<> disZ(minCorner.z(), maxCorner.z());
-
-  for (int i = 0; i < numPoints; ++i) {
-      double x = disX(gen);
-      double y = disY(gen);
-      double z = disZ(gen);
-      points.push_back(Eigen::Vector3d(x, y, z)); 
-  }
-
+  generateRandomPoints(numPoints, points);
   computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
 
   /////////////////////////////////////////////////////////////////////////
@@ -388,11 +402,11 @@ int main(int argc, char *argv[])
               ImGui::Combo("Pattern", (int*)(&type), "Uniform\0Radial\0Brick\0Grid\0Slice\0\0");
 
               // We can also use a std::vector<std::string> defined dynamically
-              static int num_choices = 3;
-              static int idx_choice = 0;
-              if (ImGui::InputInt("Num Nodes (for Node Placement)", &num_choices))
+              if (ImGui::InputInt("Num Nodes (for Node Placement)", &numPoints))
               {
-                  num_choices = std::max(1, std::min(26, num_choices));
+                  generateRandomPoints(numPoints, points);
+                  computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
+                  key_down(viewer, currKey, 0);
               }
 
               // Expose variable directly ...
@@ -427,7 +441,6 @@ int main(int argc, char *argv[])
 #else
   viewer.data().set_mesh(TV, TF);
   viewer.data().set_face_based(true);
-  drawDebugVisuals(viewer);
 #endif
 
   viewer.launch();
