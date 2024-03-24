@@ -3,7 +3,9 @@ project(fracture)
 
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+# ============================================================================== 
 # Libigl
+# ==============================================================================
 include(libigl)
 
 # Enable the target igl::glfw
@@ -46,4 +48,32 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   # igl_restricted::matlab
   # igl_restricted::mosek
   # igl_restricted::triangle
-  )
+)
+
+# ==============================================================================
+# Voro++
+# ==============================================================================
+# List of headers locations
+include_directories("voro/include")
+
+# List of cpu sources
+file(GLOB_RECURSE host_sources voro/src/*.cc)
+
+add_library(voro++ STATIC ${host_sources})
+
+target_link_libraries(${PROJECT_NAME} PRIVATE voro++)
+
+
+# ==============================================================================
+# GEOGRAM
+# ==============================================================================
+# set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
+#  CACHE STRING "Vcpkg toolchain file")
+# include(C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake)
+# find_package(Geogram REQUIRED)
+# message(STATUS "Geogram: ${GEOGRAM_LIBRARY}, ${GEOGRAM_INCLUDE_DIR}")
+# target_link_libraries(${PROJECT_NAME} PRIVATE Geogram::geogram)
+
+# no need to install manually
+# include(geogram)
+# target_link_libraries(${PROJECT_NAME} PRIVATE geogram)
