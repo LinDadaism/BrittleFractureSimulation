@@ -14,26 +14,7 @@
 #include <igl/readSTL.h>
 #include <igl/barycenter.h>
 
-//#include <geogram/basic/common.h>
-//#include <geogram/basic/logger.h>
-//#include <geogram/basic/command_line.h>
-//#include <geogram/mesh/mesh.h>
-//#include <geogram/mesh/mesh_io.h>
-//#include <geogram/voronoi/RVD.h>
-//#include <geogram/delaunay/periodic_delaunay_3d.h>
-
-//#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-//#include <CGAL/Delaunay_triangulation_3.h>
-//#include <CGAL/Triangulation_vertex_base_with_info_3.h>
-//#include <CGAL/point_generators_3.h>
-//#include <CGAL/draw_triangulation_3.h>
-
-//typedef CGAL::Exact_predicates_inexact_constructions_kernel         K;
-//typedef CGAL::Triangulation_vertex_base_with_info_3<unsigned, K>    Vb;
-//typedef CGAL::Triangulation_data_structure_3<Vb>                    Tds;
-//typedef CGAL::Delaunay_triangulation_3<K, Tds>                      Delaunay;
-//typedef Delaunay::Point                                             Point;
-//typedef CGAL::Creator_uniform_3<double, Point>                      Creator;
+typedef std::pair<int, int> Edge; // Edge represented by pair of vertex indices
 
 using namespace std;
 
@@ -44,6 +25,7 @@ Eigen::MatrixXd V; // #V by 3 matrix for vertices
 Eigen::MatrixXi F; // matrix for face indices
 Eigen::MatrixXd B; // matrix for barycenters
 Eigen::MatrixXd N; // matrix for normals
+Eigen::Vector3d minCorner, maxCorner;
 
 // Tetrahedralized interior
 Eigen::MatrixXd TV; // #TV by 3 matrix for vertex positions
@@ -53,14 +35,138 @@ Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `bou
 // Voronoi diagram
 bool periodic = false;
 int numPoints = 3;
+vector<Eigen::Vector3d> points;
+vector<vector<Eigen::Vector3d>> cellVertices; // TODO: user Eigen Matrix for 2d arrays
+vector<vector<vector<int>>> cellFaces;
+vector<Eigen::MatrixXi> cellEdges;
+
+Eigen::MatrixXd convertToMatrixXd2D(const vector<vector<Eigen::Vector3d>>& vectorOfVectors) {
+    // First, calculate the total number of rows required in the matrix
+    int totalRows = 0;
+    for (const auto& vec : vectorOfVectors) {
+        totalRows += vec.size();
+    }
+
+    // Create an Eigen::MatrixXd with the correct size
+    Eigen::MatrixXd result(totalRows, 3); // 3 columns for x, y, z coordinates
+
+    // Fill the matrix
+    int currentRow = 0;
+    for (const auto& vec : vectorOfVectors) {
+        for (const auto& point : vec) {
+            result(currentRow, 0) = point.x();
+            result(currentRow, 1) = point.y();
+            result(currentRow, 2) = point.z();
+            currentRow++;
+        }
+    }
+
+    return result;
+}
+
+Eigen::MatrixXd convertToMatrixXd(const std::vector<Eigen::Vector3d>& vec) {
+    Eigen::MatrixXd mat(vec.size(), 3); // 3 columns for x, y, z
+    for (int i = 0; i < vec.size(); ++i) {
+        mat.row(i) = vec[i];
+    }
+
+    return mat;
+}
+
+void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
+    // Corners of bounding box
+    Eigen::MatrixXd V_box(8, 3);
+    V_box <<
+        minCorner(0), minCorner(1), minCorner(2),
+        maxCorner(0), minCorner(1), minCorner(2),
+        maxCorner(0), maxCorner(1), minCorner(2),
+        minCorner(0), maxCorner(1), minCorner(2),
+        minCorner(0), minCorner(1), maxCorner(2),
+        maxCorner(0), minCorner(1), maxCorner(2),
+        maxCorner(0), maxCorner(1), maxCorner(2),
+        minCorner(0), maxCorner(1), maxCorner(2);
+
+    // Edges of the bounding box
+    Eigen::MatrixXi E_box(12, 2);
+    E_box <<
+        0, 1,
+        1, 2,
+        2, 3,
+        3, 0,
+        4, 5,
+        5, 6,
+        6, 7,
+        7, 4,
+        0, 4,
+        1, 5,
+        2, 6,
+        7, 3;
+
+    // Plot the corners of the bounding box as red points
+    viewer.data().point_size = 10.0; // default is 30, one size applies to all points visualization
+    //viewer.data().add_points(V_box, Eigen::RowVector3d(1, 0, 0));
+    
+    // Plot the edges of the bounding box
+    for (unsigned i = 0; i < E_box.rows(); ++i)
+    {
+        viewer.data().add_edges
+        (
+            V_box.row(E_box(i, 0)),
+            V_box.row(E_box(i, 1)),
+            Eigen::RowVector3d(1, 0, 0)
+        );
+    }
+
+    // Plot the voronoi cell nodes as green points
+    viewer.data().add_points(convertToMatrixXd(points), Eigen::RowVector3d(0, 1, 0));
+
+    // Plot the voronoi cell boundary points as blue points
+    Eigen::MatrixXd VV = convertToMatrixXd2D(cellVertices);
+#ifdef DEBUG1
+    cout << "total cell verts: " << VV.rows() << endl;
+    string sep = "\n----------------------------------------\n";
+    Eigen::IOFormat cleanFmt(4, 0, ", ", "\n", "[", "]");
+    cout << VV.format(cleanFmt) << sep << endl;
+#endif
+    viewer.data().add_points(VV, Eigen::RowVector3d(0, 0, 1));
+
+    // Plot the voronoi cell edges as blue lines
+    for (int cellIndex = 0; cellIndex < cellEdges.size(); ++cellIndex) {
+        const auto& edges = cellEdges[cellIndex];
+        const auto& vertices = cellVertices[cellIndex];
+
+        Eigen::MatrixXd V = convertToMatrixXd(vertices);
+        Eigen::MatrixXd P1(edges.rows(), 3);
+        Eigen::MatrixXd P2(edges.rows(), 3);
+
+        for (int i = 0; i < edges.rows(); ++i) {
+            int v1 = edges(i, 0);
+            int v2 = edges(i, 1);
+
+            P1.row(i) = V.row(v1);
+            P2.row(i) = V.row(v2);
+        }
+
+        // Add edges to the viewer for this cell
+        viewer.data().add_edges(P1, P2, Eigen::RowVector3d(0, 0, 1));
+    }
+}
 
 // Helper func, called every time a keyboard button is pressed
 // Slice model at various percentage to view internal tetrahedral structure
-bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier)
-{
+bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
     using namespace Eigen;
 
-    if (key == '0') return false;
+    if (key == '0')
+    {
+        viewer.data().clear();
+    }
+    if (key == '*')
+    {
+        viewer.data().clear();
+        viewer.data().set_mesh(V, F);
+        viewer.data().set_face_based(true);
+    }
 
     if (key >= '1' && key <= '9')
     {
@@ -102,32 +208,19 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
         viewer.data().set_face_based(true);
     }
 
+    drawDebugVisuals(viewer);
+
     return false;
 }
-
-/**
- * \brief Initializes the Delaunay triangulation with
- *  random points.
- * \param[in] nb_points_in number of points
- * \param[delaunay] 
- */
-// using namespace GEO;
-//void init_random_points(int nb_points_in, PeriodicDelaunay3d &delaunay) {
-//    index_t nb_points = index_t(nb_points_in);
-//    nodes.resize(3 * nb_points);
-//    for (index_t i = 0; i < 3 * nb_points; ++i) {
-//        nodes[i] = Numeric::random_float64();
-//    }
-//    delaunay.set_vertices(nb_points, nodes.data());
-//    delaunay.compute();
-//}
 
 void computeVoronoiCells(
     const vector<Eigen::Vector3d>& points,
     const Eigen::Vector3d& minCorner,
     const Eigen::Vector3d& maxCorner,
-    vector<vector<Eigen::Vector3d>>& cellVertices, // TODO: user Eigen Matrix for 2d arrays
-    vector<vector<int>>& cellFaces) {
+    vector<vector<Eigen::Vector3d>>& cellVertices, // TODO: use Eigen Matrix
+    vector<vector<vector<int>>>& cellFaces, // Each cell's faces by vertex indices
+    vector<Eigen::MatrixXi>& cellEdges // Each cell's edges
+) {
 
     // Initialize container
     voro::container con(
@@ -146,18 +239,28 @@ void computeVoronoiCells(
     // Prepare cell computation
     voro::c_loop_all cl(con);
     voro::voronoicell_neighbor c;
-    vector<double> fVerts; // Face vertices in global pos
     double x, y, z;
 
     if (cl.start()) do if (con.compute_cell(c, cl)) {
-        // Extract cell vertices
+        vector<double> cVerts;
+        vector<int> neigh, fVerts;
+
         cl.pos(x, y, z);
-        c.vertices(x, y, z, fVerts);
-#ifdef DEBUG
-        cout << "cell verts #: " << fVerts.size() << endl;
-        for (int i = 0; i < fVerts.size(); i++)
+        c.vertices(x, y, z, cVerts); // returns a vector of triplets (x,y,z)
+        c.face_vertices(fVerts); // returns information about which vertices comprise each face:
+                                 // It is a vector of integers with a specific format: 
+                                 // the first entry is a number k corresponding to the number of vertices
+                                 // making up a face, and this is followed k additional entries 
+                                 // describing which vertices make up this face. 
+                                 // e.g. (3, 16, 20, 13) would correspond to a triangular face linking
+                                 // vertices 16, 20, and 13 together.
+        c.neighbors(neigh); // returns the neighboring particle IDs corresponding to each face
+
+#ifdef DEBUG1
+        cout << "cell verts #: " << cVerts.size() / 3 << endl;
+        for (int i = 0; i < cVerts.size(); i++)
         {
-            cout << fVerts[i];
+            cout << cVerts[i];
             if (i % 3 == 2)
             {
                 cout << endl;
@@ -168,64 +271,56 @@ void computeVoronoiCells(
         }
         cout << "\n" << endl;
 #endif
-
+        // Process vertices
         vector<Eigen::Vector3d> verts;
-        // TOOD: do we want a triangulated verts array?
-        for (int i = 0; i < fVerts.size(); i += 3) {
-            verts.push_back(Eigen::Vector3d(fVerts[i], fVerts[i + 1], fVerts[i + 2]));
+        for (int i = 0; i < cVerts.size(); i += 3) {
+            verts.push_back(Eigen::Vector3d(cVerts[i], cVerts[i + 1], cVerts[i + 2]));
         }
+
+        // Process cell faces and edges
+        vector<vector<int>> faces; // faces<face vertex indices>
+        vector<Edge> edges;
+        for (int i = 0; i < fVerts.size(); i += fVerts[i] + 1) {
+            int n = fVerts[i]; // Number of vertices for this face
+            vector<int> face;
+
+            for (int k = 1; k <= n; ++k) {
+                face.push_back(fVerts[i + k]);
+
+                // Extract edges
+                int currVertex = fVerts[i + k];
+                int nextVertex = fVerts[i + ((k % n) + 1)];
+                Edge edge(std::min(currVertex, nextVertex), std::max(currVertex, nextVertex));
+
+                if (std::find(edges.begin(), edges.end(), edge) == edges.end()) {
+                    edges.push_back(edge); // Add unique edge
+                }
+            }
+
+            faces.push_back(face);
+        }
+
         cellVertices.push_back(verts);
-
-        // TODO: fix converting fVerts of doubles to faces of vertex indices
-        // Extract cell faces (as vertex indices) for visualization
-        vector<int> faces;
-        vector<double>::iterator it = fVerts.begin();
-        while (it != fVerts.end()) {
-            int faceVerts = *(it++);
-            faces.push_back(faceVerts); // Assuming libigl can handle these faces
-            it += faceVerts * 3; // Skip the vertices of this face
-        }
         cellFaces.push_back(faces);
-    } while (cl.inc());
-}
 
-Eigen::MatrixXd convertToEigenMatrix(const vector<vector<Eigen::Vector3d>>& vectorOfVectors) {
-    // First, calculate the total number of rows required in the matrix
-    int totalRows = 0;
-    for (const auto& vec : vectorOfVectors) {
-        totalRows += vec.size();
-    }
-
-    // Create an Eigen::MatrixXd with the correct size
-    Eigen::MatrixXd result(totalRows, 3); // 3 columns for x, y, z coordinates
-
-    // Fill the matrix
-    int currentRow = 0;
-    for (const auto& vec : vectorOfVectors) {
-        for (const auto& point : vec) {
-            result(currentRow, 0) = point.x();
-            result(currentRow, 1) = point.y();
-            result(currentRow, 2) = point.z();
-            currentRow++;
+        // TODO: move to a helper func
+        // Convert edgesVector to Eigen::MatrixXi for current cell
+        Eigen::MatrixXi edgesMatrix(edges.size(), 2);
+        for (int i = 0; i < edges.size(); ++i) {
+            edgesMatrix(i, 0) = edges[i].first;
+            edgesMatrix(i, 1) = edges[i].second;
         }
-    }
+        cellEdges.push_back(edgesMatrix);
 
-    return result;
-}
-
-Eigen::MatrixXd convertToMatrixXd(const std::vector<Eigen::Vector3d>& vec) {
-    Eigen::MatrixXd mat(vec.size(), 3); // 3 columns for x, y, z
-    for (size_t i = 0; i < vec.size(); ++i) {
-        mat.row(i) = vec[i];
-    }
-
-    return mat;
+    } while (cl.inc());
 }
 
 int main(int argc, char *argv[])
 {
-    // Load a surface mesh
-    string filePath = "../assets/cube.obj";// "../assets/bunny.stl"; // "../assets/Armadillo.ply"
+    /////////////////////////////////////////////////////////////////////////
+    //                         Load mesh                                   //
+    /////////////////////////////////////////////////////////////////////////
+    string filePath = "../assets/dodecahedron.obj";// "../assets/bunny.stl"; // "../assets/Armadillo.ply"
     igl::readOBJ(filePath, V, F);
     //igl::readPLY(filePath, V, F);
     
@@ -241,12 +336,13 @@ int main(int argc, char *argv[])
   igl::barycenter(TV, TT, B);
   std::cout << "barycenter #row: " << B.rows() << "#col: " << B.cols() << std::endl;
 
-  // Voronoi decomposition
-  std::vector<Eigen::Vector3d> points;
+    /////////////////////////////////////////////////////////////////////////
+    //                         Voronoi decomposition                       //
+    /////////////////////////////////////////////////////////////////////////
 
   // Get the mesh's bounding box
-  Eigen::Vector3d minCorner = V.colwise().minCoeff();
-  Eigen::Vector3d maxCorner = V.colwise().maxCoeff();
+  minCorner = V.colwise().minCoeff();
+  maxCorner = V.colwise().maxCoeff();
 
   // Generate random points
   // TODO: can look into https://doc.cgal.org/latest/Generator/Generator_2random_points_in_tetrahedral_mesh_3_8cpp-example.html#_a9
@@ -263,20 +359,14 @@ int main(int argc, char *argv[])
       points.push_back(Eigen::Vector3d(x, y, z)); 
   }
 
-  //Delaunay dt(points.begin(), points.end());
-  //cout << "dt.dimention = " << dt.dimension() << endl;
-
-  vector<vector<Eigen::Vector3d>> cellVertices; // TODO: user Eigen Matrix for 2d arrays
-  vector<vector<int>> cellFaces;
-  computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces);
-
-  // Init the viewer
-  igl::opengl::glfw::Viewer viewer;
+  computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
 
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
   /////////////////////////////////////////////////////////////////////////
- 
+  // Init the viewer
+  igl::opengl::glfw::Viewer viewer;
+
   // Attach a menu plugin
   igl::opengl::glfw::imgui::ImGuiPlugin plugin;
   viewer.plugins.push_back(&plugin);
@@ -325,74 +415,20 @@ int main(int argc, char *argv[])
           }
       };
 
-  // Plot the mesh
+  /////////////////////////////////////////////////////////////////////////
+  //                        Visualization                                //
+  /////////////////////////////////////////////////////////////////////////
+  // Plot the tet mesh
 #if DEBUG
   viewer.callback_key_down = &key_down;
-  key_down(viewer, '0', 0); // start off with 50% percentage of model cut
+  key_down(viewer, '5', 0); // '5', start off with 50% percentage of model cut;
+                            // '0', no model rendering
+                            // '*', full model
 #else
   viewer.data().set_mesh(TV, TF);
   viewer.data().set_face_based(true);
+  drawDebugVisuals(viewer);
 #endif
-  // Corners of bounding box
-  Eigen::MatrixXd V_box(8, 3);
-  V_box <<
-      minCorner(0), minCorner(1), minCorner(2),
-      maxCorner(0), minCorner(1), minCorner(2),
-      maxCorner(0), maxCorner(1), minCorner(2),
-      minCorner(0), maxCorner(1), minCorner(2),
-      minCorner(0), minCorner(1), maxCorner(2),
-      maxCorner(0), minCorner(1), maxCorner(2),
-      maxCorner(0), maxCorner(1), maxCorner(2),
-      minCorner(0), maxCorner(1), maxCorner(2);
 
-  // Edges of the bounding box
-  Eigen::MatrixXi E_box(12, 2);
-  E_box <<
-      0, 1,
-      1, 2,
-      2, 3,
-      3, 0,
-      4, 5,
-      5, 6,
-      6, 7,
-      7, 4,
-      0, 4,
-      1, 5,
-      2, 6,
-      7, 3;
-  
-  // Plot the corners of the bounding box as red points
-  viewer.data().add_points(V_box, Eigen::RowVector3d(1, 0, 0));
-  viewer.data().point_size = 30.0; // default is 30
-  // Plot the edges of the bounding box
-  for (unsigned i = 0; i < E_box.rows(); ++i)
-  {
-      viewer.data().add_edges
-      (
-          V_box.row(E_box(i, 0)),
-          V_box.row(E_box(i, 1)),
-          Eigen::RowVector3d(1, 0, 0)
-      );
-  }
-
-  // Plot the voronoi cell nodes as green points
-  viewer.data().add_points(convertToMatrixXd(points), Eigen::RowVector3d(0, 1, 0));
-  // Plot the voronoi cell boundary points as blue points
-  Eigen::MatrixXd VV(cellVertices[0].size() + cellVertices[1].size()+ cellVertices[2].size(), 3);
-  for (int i = 0; i < cellVertices.size(); i++)
-  {
-      int start = VV.rows();
-      cout << "# VV rows: " << start << endl;
-      for (int j = 0; j < cellVertices[i].size(); j++)
-      {
-          Eigen::Vector3d pos = cellVertices[i][j];
-          //VV(j + start, 0) = pos(0);
-          //VV(j + start, 1) = pos(1);
-          //VV(j + start, 2) = pos(2);
-          cout << "VV row(" << j+start << ") = " << pos(0) << ", " << pos(1) << ", " << pos(2) << endl;
-      }
-  }
-  viewer.data().point_size = 10.0;
-  viewer.data().add_points(VV, Eigen::RowVector3d(0, 0, 1));
   viewer.launch();
 }
