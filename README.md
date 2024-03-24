@@ -13,39 +13,18 @@ BFX depends on external libraries:
     - opengl
     - glfw
     - tetgen
-* [Geogram](https://github.com/BrunoLevy/geogram?tab=readme-ov-file), a geometry processing library mainly used for Voronoi decomposition and mesh intersection.
+* [Voro++](https://math.lbl.gov/voro++/), a C++ library for carrying out three-dimensional computations of the Voronoi tessellation.
 
-**We configure the project using cmake. Installation of `libigl` is handled automatically. However, we do need to manually install `geogram` to the local machine.** The following instructions walk through the recommended steps for installing `geogram`on Windows.
+**We configure the project using cmake. Installation of `libigl` is handled automatically. We include source code of `voro++` in the project, thus building `voro++` also automatically handled by cmake.** 
 
-1. Install `vcpkg`
-
-[Vcpkg](https://github.com/alicevision/vcpkg) is a package manager that helps in acquiring, building, and managing C/C++ libraries. `geogram` can be built with it. See the reference [installation guide](https://github.com/alicevision/vcpkg/blob/alicevision_master/README.md#quick-start-windows) to setup vcpkg.
-
-```bash
-cd C:\dev\ # (recommended but optional, reason being that 1. global install - somewhere like C:\src\vcpkg or C:\dev\vcpkg, avoids path issues for some port build systems; 2. this is the default path CMakeLists searches for the package)
-git clone https://github.com/microsoft/vcpkg
-.\vcpkg\bootstrap-vcpkg.bat
-```
-**Note**: If you downloaded `vcpkg` somewhere else, you have to change the `CMAKE_TOOLCHAIN_FILE` in the CMakeLists.txt to reflect that change!
-
-2. Build the required dependencies
-```bash
-cd <VCPKG_INSTALL_DIR>
-set VCPKG_ROOT=%cd%
-
-vcpkg install geogram # This might take a while.
-
-# geogram should show up if you call `vcpkg list`
-```
-
-Now we can build the Visual Studio project:
+Now let's build the Visual Studio project:
 
 3. From the `Brittle-Fracture` directory, run:
 
     * Windows: `cmake -B build -S . -G "Visual Studio 17 2022" -A x64` to generate the Visual Studio project. You may choose a different Visual Studio version.
 4. Open the generated `fracture.sln` project inside `/build` directory.
 5. Build and Run. Make sure you run the `transpose` target (not `ALL_BUILD`) by right-clicking it and selecting "Set as StartUp Project".
-6. If there's a compile error in `tetgenio_to_tetmesh.cpp`,
+6. **ATTENTION!** There will be a compile error in `tetgenio_to_tetmesh.cpp`,
 ```
 'numberofpointmarkers' is not a member of 'tetgenio'
 ```
@@ -54,7 +33,7 @@ Now we can build the Visual Studio project:
 assert(out.numberofpoints == out.numberofpointmarkers);
 ```
 
-A GUI window should launch displaying a 3D cube.
+A GUI window should launch displaying a 3D cube along with some debugging visuals of the vornoi decomposition.
 
 
 # Misc below:
