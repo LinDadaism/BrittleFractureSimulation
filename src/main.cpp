@@ -14,6 +14,8 @@
 #include <igl/readSTL.h>
 #include <igl/barycenter.h>
 
+#include "clipper.h"
+
 typedef std::pair<int, int> Edge; // Edge represented by pair of vertex indices
 
 using namespace std;
@@ -375,6 +377,12 @@ int main(int argc, char *argv[])
   generateRandomPoints(numPoints, points);
   computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
 
+  /*std::vector<Eigen::Vector3d> verts; 
+  verts.push_back(Eigen::Vector3d(1., 0., 0.));
+  verts.push_back(Eigen::Vector3d(0., 1., 0.));
+  verts.push_back(Eigen::Vector3d(0., 0., 1.));*/
+  /*MeshConvex meshconvex{ verts };
+  buildConvexHull(meshconvex);*/
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
   /////////////////////////////////////////////////////////////////////////
