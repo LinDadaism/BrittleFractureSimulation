@@ -344,6 +344,30 @@ void computeVoronoiCells(
 
     } while (cl.inc());
 }
+void testFunc() {
+    typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
+    typedef CGAL::Polyhedron_3<K>                     Polyhedron_3;
+    typedef K::Point_3                                Point_3;
+    typedef CGAL::Surface_mesh<Point_3>               Surface_mesh;
+    std::vector<Point_3> points;
+    Point_3 p;
+    points.push_back(Point_3(0, 0, 0));
+    points.push_back(Point_3(1, 0, 0));
+    points.push_back(Point_3(0, 1, 0));
+    points.push_back(Point_3(1, 1, 0));
+    points.push_back(Point_3(0, 0, 1));
+    points.push_back(Point_3(1, 0, 1));
+    points.push_back(Point_3(0, 1, 1));
+    points.push_back(Point_3(1, 1, 1));
+    // define polyhedron to hold convex hull
+    Polyhedron_3 poly;
+    // compute convex hull of non-collinear points
+    CGAL::convex_hull_3(points.begin(), points.end(), poly);
+    std::cout << "The convex hull contains " << poly.size_of_vertices() << " vertices" << std::endl;
+    Surface_mesh sm;
+    CGAL::convex_hull_3(points.begin(), points.end(), sm);
+    std::cout << "The convex hull contains " << num_vertices(sm) << " vertices" << std::endl;
+}
 
 int main(int argc, char *argv[])
 {
@@ -358,7 +382,7 @@ int main(int argc, char *argv[])
     //if (stlAscii.is_open()) {
     //    igl::readSTL(stlAscii, V, F, N);
     //}
-
+    testFunc();
   // Tetrahedralize the interior
   igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.414Y", TV, TT, TF);
 

@@ -3,8 +3,14 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
-#include <igl/copyleft/cgal/convex_hull.h>
-//#include <CGAL/Surface_mesh.h>
+
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Polyhedron_3.h>
+#include <CGAL/Surface_mesh.h>
+#include <CGAL/convex_hull_3.h>
+#include <vector>
+#include <fstream>
+
 
 struct Plane {
     Eigen::Vector3d normal;
