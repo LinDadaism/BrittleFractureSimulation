@@ -19,6 +19,7 @@ typedef std::pair<int, int> Edge; // Edge represented by pair of vertex indices
 using namespace std;
 
 #define DEBUG 1
+#define DEBUG_VORO 0
 
 // Input polygon
 Eigen::MatrixXd V; // #V by 3 matrix for vertices
@@ -36,12 +37,15 @@ Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `bou
 bool periodic = false;
 int numPoints = 3;
 vector<Eigen::Vector3d> points;
-vector<vector<Eigen::Vector3d>> cellVertices; // TODO: user Eigen Matrix for 2d arrays
-vector<vector<vector<int>>> cellFaces;
-vector<Eigen::MatrixXi> cellEdges;
+
+// TODO: encapsulate class Compound
+vector<vector<Eigen::Vector3d>> cellVertices;   // Vertices of each Voronoi cell
+vector<vector<vector<int>>> cellFaces;          // Faces of each Voronoi cell represented by vertex indices
+vector<Eigen::MatrixXi> cellEdges;              // Edges of each Voronoi cell represented by vertex indices
 
 // other global variables
 char currKey = '0';
+Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
 
 Eigen::MatrixXd convertToMatrixXd2D(const vector<vector<Eigen::Vector3d>>& vectorOfVectors) {
     // First, calculate the total number of rows required in the matrix
@@ -125,7 +129,7 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
 
     // Plot the voronoi cell boundary points as blue points
     Eigen::MatrixXd VV = convertToMatrixXd2D(cellVertices);
-#ifdef DEBUG1
+#if DEBUG_VORO
     cout << "total cell verts: " << VV.rows() << endl;
     string sep = "\n----------------------------------------\n";
     Eigen::IOFormat cleanFmt(4, 0, ", ", "\n", "[", "]");
@@ -153,6 +157,39 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
         // Add edges to the viewer for this cell
         viewer.data().add_edges(P1, P2, Eigen::RowVector3d(0, 0, 1));
     }
+
+#if DEBUG_VORO
+    // Plot the voronoi cell faces
+    // Assuming we're visualizing the ith cell
+    const auto& verts = cellVertices[1];
+    const auto& faces = cellFaces[1];
+    for (auto& f : faces)
+    {
+        cout << "# fverts: " << f.size() << endl;
+    }
+    // Convert vertices to Eigen::MatrixXd
+    Eigen::MatrixXd CV(verts.size(), 3);
+    for (size_t i = 0; i < verts.size(); ++i) {
+        CV.row(i) = verts[i];
+    }
+
+    // Convert faces to Eigen::MatrixXi
+    // Note: This assumes all faces are triangles. If not, you'll need to triangulate faces.
+    size_t totalFaces = 0;
+    for (const auto& face : faces) {
+        totalFaces += face.size() - 2; // Simple triangulation for non-triangular faces
+    }
+    Eigen::MatrixXi CF(totalFaces, 3);
+    size_t currentRow = 0;
+    for (const auto& face : faces) {
+        // Assuming the face is a simple polygon that can be triangulated by a fan.
+        for (size_t i = 1; i + 1 < face.size(); ++i) {
+            CF.row(currentRow++) << face[0], face[i], face[i + 1];
+        }
+    }
+    cout << "CF:\n" << CF.format(CleanFmt) << endl;
+    viewer.data().set_mesh(CV, CF);
+#endif
 }
 
 // Helper func, called every time a keyboard button is pressed
