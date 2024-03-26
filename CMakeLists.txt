@@ -3,6 +3,10 @@ project(fracture)
 
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+
 # ============================================================================== 
 # Libigl
 # ==============================================================================
@@ -42,7 +46,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   # igl::stb
   # igl::predicates
   # igl::xml
-  #igl_copyleft::cgal
+  # igl_copyleft::cgal
   # igl_copyleft::comiso
   # igl_copyleft::core
   # igl_copyleft::cork

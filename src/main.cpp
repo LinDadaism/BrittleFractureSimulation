@@ -15,12 +15,14 @@
 #include <igl/barycenter.h>
 
 #include "clipper.h"
+//#include <igl/copyleft/cgal/convex_hull.h>
 
 typedef std::pair<int, int> Edge; // Edge represented by pair of vertex indices
 
 using namespace std;
 
 #define DEBUG 0
+#define DEBUG_VORO 0
 
 // Input polygon
 Eigen::MatrixXd V; // #V by 3 matrix for vertices
@@ -28,6 +30,9 @@ Eigen::MatrixXi F; // matrix for face indices
 Eigen::MatrixXd B; // matrix for barycenters
 Eigen::MatrixXd N; // matrix for normals
 Eigen::Vector3d minCorner, maxCorner; // min and max corners of mesh's bounding box
+
+Eigen::MatrixXd meshV;
+Eigen::MatrixXi meshF;
 
 // Tetrahedralized interior
 Eigen::MatrixXd TV; // #TV by 3 matrix for vertex positions
@@ -38,12 +43,16 @@ Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `bou
 bool periodic = false;
 int numPoints = 20;
 vector<Eigen::Vector3d> points;
-vector<vector<Eigen::Vector3d>> cellVertices; // TODO: user Eigen Matrix for 2d arrays
-vector<vector<vector<int>>> cellFaces;
-vector<Eigen::MatrixXi> cellEdges;
+
+// TODO: encapsulate class Compound
+vector<vector<Eigen::Vector3d>> cellVertices;   // Vertices of each Voronoi cell
+vector<vector<vector<int>>> cellFaces;          // Faces of each Voronoi cell represented by vertex indices
+vector<Eigen::MatrixXi> cellEdges;              // Edges of each Voronoi cell represented by vertex indices
 
 // other global variables
 char currKey = '0';
+Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
+
 
 Eigen::MatrixXd convertToMatrixXd2D(const vector<vector<Eigen::Vector3d>>& vectorOfVectors) {
     // First, calculate the total number of rows required in the matrix
@@ -159,7 +168,7 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
 
     // Plot the voronoi cell boundary points as blue points
     Eigen::MatrixXd VV = convertToMatrixXd2D(cellVertices);
-#ifdef DEBUG1
+#if DEBUG_VORO
     cout << "total cell verts: " << VV.rows() << endl;
     string sep = "\n----------------------------------------\n";
     Eigen::IOFormat cleanFmt(4, 0, ", ", "\n", "[", "]");
@@ -187,6 +196,39 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
         // Add edges to the viewer for this cell
         viewer.data().add_edges(P1, P2, Eigen::RowVector3d(0, 0, 1));
     }
+
+#if DEBUG_VORO
+    // Plot the voronoi cell faces
+    // Assuming we're visualizing the ith cell
+    const auto& verts = cellVertices[1];
+    const auto& faces = cellFaces[1];
+    for (auto& f : faces)
+    {
+        cout << "# fverts: " << f.size() << endl;
+    }
+    // Convert vertices to Eigen::MatrixXd
+    Eigen::MatrixXd CV(verts.size(), 3);
+    for (size_t i = 0; i < verts.size(); ++i) {
+        CV.row(i) = verts[i];
+    }
+
+    // Convert faces to Eigen::MatrixXi
+    // Note: This assumes all faces are triangles. If not, you'll need to triangulate faces.
+    size_t totalFaces = 0;
+    for (const auto& face : faces) {
+        totalFaces += face.size() - 2; // Simple triangulation for non-triangular faces
+    }
+    Eigen::MatrixXi CF(totalFaces, 3);
+    size_t currentRow = 0;
+    for (const auto& face : faces) {
+        // Assuming the face is a simple polygon that can be triangulated by a fan.
+        for (size_t i = 1; i + 1 < face.size(); ++i) {
+            CF.row(currentRow++) << face[0], face[i], face[i + 1];
+        }
+    }
+    cout << "CF:\n" << CF.format(CleanFmt) << endl;
+    viewer.data().set_mesh(CV, CF);
+#endif
 }
 
 // Helper func, called every time a keyboard button is pressed
@@ -452,8 +494,8 @@ int main(int argc, char *argv[])
     if (stlAscii.is_open()) {
         igl::readSTL(stlAscii, V, F, N);
     }
-    // test for bunny 
-    
+    //igl::copyleft::cgal::convex_hull(meshV, V, F);
+
   // Tetrahedralize the interior
   igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.414Y", TV, TT, TF);
 
@@ -461,29 +503,22 @@ int main(int argc, char *argv[])
   igl::barycenter(TV, TT, B);
   std::cout << "barycenter #row: " << B.rows() << "#col: " << B.cols() << std::endl;
 
-    /////////////////////////////////////////////////////////////////////////
-    //                         Voronoi decomposition                       //
-    /////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////
+  //                         Voronoi decomposition                       //
+  /////////////////////////////////////////////////////////////////////////
 
   // Get the mesh's bounding box
   minCorner = V.colwise().minCoeff();
   maxCorner = V.colwise().maxCoeff();
 
-  points.push_back(Eigen::Vector3d(0.1, -0.4, 0));
-  points.push_back(Eigen::Vector3d(0.3, 0.12, -0.4));
   generateRandomPoints(numPoints, points);
   computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
 
+  // test clipping
   auto mesh = testFunc2();
   V = convertToMatrixXd(mesh.vertices);
   F = convertToMatrixXi(mesh.faces);
-
-  /*std::vector<Eigen::Vector3d> verts; 
-  verts.push_back(Eigen::Vector3d(1., 0., 0.));
-  verts.push_back(Eigen::Vector3d(0., 1., 0.));
-  verts.push_back(Eigen::Vector3d(0., 0., 1.));*/
-  /*MeshConvex meshconvex{ verts };
-  buildConvexHull(meshconvex);*/
+  
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
   /////////////////////////////////////////////////////////////////////////
@@ -544,7 +579,7 @@ int main(int argc, char *argv[])
   // Plot the tet mesh
 #if DEBUG
   viewer.callback_key_down = &key_down;
-  key_down(viewer, '5', 0); // '5', start off with 50% percentage of model cut;
+  key_down(viewer, '*', 0); // '5', start off with 50% percentage of model cut;
                             // '0', no model rendering
                             // '*', full model
 #else
