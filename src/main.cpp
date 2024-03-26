@@ -41,7 +41,7 @@ Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `bou
 
 // Voronoi diagram
 bool periodic = false;
-int numPoints = 20;
+int numPoints = 10;
 vector<Eigen::Vector3d> points;
 
 // TODO: encapsulate class Compound
@@ -453,7 +453,7 @@ MeshConvex testFunc() {
     return tester;
 }
 
-MeshConvex testFunc2() {
+MeshConvex testFunc2(int cellIndex) {
     /*std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
                                             Eigen::Vector3d(0.0,0.0,1.0),
                                             Eigen::Vector3d(0.0,1.0,0.0),
@@ -477,8 +477,31 @@ MeshConvex testFunc2() {
     Pattern pattern(cellVertices, cellFaces, cellEdges);
     pattern.createCellsfromVoro();
     std::vector<Cell> cells = pattern.getCells();
-    auto result = clipConvexAgainstCell(tester, cells[0]);
+    auto result = clipConvexAgainstCell(tester, cells[cellIndex]);
     return result;
+}
+
+// Helper func, called every time a keyboard button is pressed
+// Slice model at various percentage to view internal tetrahedral structure
+bool key_down_clip(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
+    using namespace Eigen;
+
+    currKey = key; // keep a global record
+
+    if (key >= '0' && key <= '9')
+    {
+        int cellIndex = int(key - '0');
+        auto mesh = testFunc2(cellIndex);
+        auto V_temp = convertToMatrixXd(mesh.vertices);
+        auto F_temp = convertToMatrixXi(mesh.faces);
+        viewer.data().clear();
+        viewer.data().set_mesh(V_temp, F_temp);
+        viewer.data().set_face_based(true);
+    }
+
+    drawDebugVisuals(viewer);
+
+    return false;
 }
 
 int main(int argc, char *argv[])
@@ -515,9 +538,9 @@ int main(int argc, char *argv[])
   computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
 
   // test clipping
-  auto mesh = testFunc2();
-  V = convertToMatrixXd(mesh.vertices);
-  F = convertToMatrixXi(mesh.faces);
+  //auto mesh = testFunc2();
+  //V = convertToMatrixXd(mesh.vertices);
+  //F = convertToMatrixXi(mesh.faces);
   
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
@@ -583,11 +606,10 @@ int main(int argc, char *argv[])
                             // '0', no model rendering
                             // '*', full model
 #else
-  drawDebugVisuals(viewer);
-  viewer.data().set_mesh(V, F);
+  viewer.callback_key_down = &key_down_clip;
+  key_down_clip(viewer, '0', 0);
   Eigen::MatrixXd origin(1, 3); origin << 0, 0, 0;
   viewer.data().add_points(origin, Eigen::RowVector3d(1, 0, 0));
-  viewer.data().set_face_based(true);
 #endif
 
   viewer.launch();
