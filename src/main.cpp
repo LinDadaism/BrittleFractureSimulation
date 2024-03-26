@@ -20,7 +20,7 @@ typedef std::pair<int, int> Edge; // Edge represented by pair of vertex indices
 
 using namespace std;
 
-#define DEBUG 1
+#define DEBUG 0
 
 // Input polygon
 Eigen::MatrixXd V; // #V by 3 matrix for vertices
@@ -36,7 +36,7 @@ Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `bou
 
 // Voronoi diagram
 bool periodic = false;
-int numPoints = 8;
+int numPoints = 20;
 vector<Eigen::Vector3d> points;
 vector<vector<Eigen::Vector3d>> cellVertices; // TODO: user Eigen Matrix for 2d arrays
 vector<vector<vector<int>>> cellFaces;
@@ -76,6 +76,38 @@ Eigen::MatrixXd convertToMatrixXd(const std::vector<Eigen::Vector3d>& vec) {
     }
 
     return mat;
+}
+
+Eigen::MatrixXi convertToMatrixXi(const std::vector<std::vector<int>>& vec) {
+    Eigen::MatrixXi mat(vec.size(), 3); // 3 columns for x, y, z
+    for (int i = 0; i < vec.size(); ++i) {
+        mat(i, 0) = vec[i][0];
+        mat(i, 1) = vec[i][1];
+        mat(i, 2) = vec[i][2];
+    }
+
+    return mat;
+}
+
+void convertToFaceVertArray(const Eigen::MatrixXi& faceVertsMat, vector<vector<int>>& faceVerts)
+{
+    for (int i = 0; i < faceVertsMat.rows(); ++i) {
+        // Temporary vector to hold the vertex indices for the current face
+        std::vector<int> indices;
+
+        for (int j = 0; j < faceVertsMat.cols(); ++j) {
+            indices.push_back(faceVertsMat(i, j));
+        }
+        faceVerts.push_back(indices);
+    }
+}
+
+void convertToVertArray(const Eigen::MatrixXd& vertMatrix, vector<Eigen::Vector3d>& vertVector)
+{
+    for (int i = 0; i < vertMatrix.rows(); ++i) {
+        Eigen::Vector3d vertex = vertMatrix.row(i);
+        vertVector.push_back(vertex);
+    }
 }
 
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
@@ -344,29 +376,67 @@ void computeVoronoiCells(
 
     } while (cl.inc());
 }
-void testFunc() {
-    typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
-    typedef CGAL::Polyhedron_3<K>                     Polyhedron_3;
-    typedef K::Point_3                                Point_3;
-    typedef CGAL::Surface_mesh<Point_3>               Surface_mesh;
-    std::vector<Point_3> points;
-    Point_3 p;
-    points.push_back(Point_3(0, 0, 0));
-    points.push_back(Point_3(1, 0, 0));
-    points.push_back(Point_3(0, 1, 0));
-    points.push_back(Point_3(1, 1, 0));
-    points.push_back(Point_3(0, 0, 1));
-    points.push_back(Point_3(1, 0, 1));
-    points.push_back(Point_3(0, 1, 1));
-    points.push_back(Point_3(1, 1, 1));
-    // define polyhedron to hold convex hull
-    Polyhedron_3 poly;
-    // compute convex hull of non-collinear points
-    CGAL::convex_hull_3(points.begin(), points.end(), poly);
-    std::cout << "The convex hull contains " << poly.size_of_vertices() << " vertices" << std::endl;
-    Surface_mesh sm;
-    CGAL::convex_hull_3(points.begin(), points.end(), sm);
-    std::cout << "The convex hull contains " << num_vertices(sm) << " vertices" << std::endl;
+
+MeshConvex testFunc() {
+    std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
+                                            Eigen::Vector3d(0.0,0.0,1.0),
+                                            Eigen::Vector3d(0.0,1.0,0.0),
+                                            Eigen::Vector3d(0.0,1.0,1.0),
+                                            Eigen::Vector3d(1.0,0.0,0.0),
+                                            Eigen::Vector3d(1.0,0.0,1.0),
+                                            Eigen::Vector3d(1.0,1.0,0.0),
+                                            Eigen::Vector3d(1.0,1.0,1.0)};
+    for (auto& p : points) {
+        p += Eigen::Vector3d(-0.5, -0.5, -0.5);
+        p *= 2;
+    }
+    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
+                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
+                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3}};
+    MeshConvex tester{ points, faces };
+    Plane      p{ -Eigen::Vector3d(0.30076923076923073, 0.78199999999999992, -0.60153846153846147), -0.070981538461538513 };
+    Plane      p1{ -Eigen::Vector3d(0.0000000000000000, -0.0000000000000000, 0.98615384615384605), 0.49307692307692302 };
+    Plane      p2{ -Eigen::Vector3d(-0.21692307692307689, 0.0000000000000000, 0.0000000000000000), 0.10846153846153844 };
+    Plane      p3{ -Eigen::Vector3d(0.47040307692307681, 0.0000000000000000, -0.0000000000000000), 0.23520153846153841 };
+    Plane      p5{ -Eigen::Vector3d(2.4083299457253392e-17, 0.0000000000000000, -0.12234461538461533), 0.061172307692307651 };
+    Plane      p4{ -Eigen::Vector3d(0.0000000000000000, -1.0000000000000000, 0.0000000000000000), 0.50000000000000000 };
+    //tester = clipConvexAgainstPlane(tester, p);
+    tester = clipConvexAgainstPlane(tester, p);
+    tester = clipConvexAgainstPlane(tester, p1);
+    tester = clipConvexAgainstPlane(tester, p2);
+    tester = clipConvexAgainstPlane(tester, p3);
+    tester = clipConvexAgainstPlane(tester, p4);
+    tester = clipConvexAgainstPlane(tester, p5);
+
+    return tester;
+}
+
+MeshConvex testFunc2() {
+    /*std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
+                                            Eigen::Vector3d(0.0,0.0,1.0),
+                                            Eigen::Vector3d(0.0,1.0,0.0),
+                                            Eigen::Vector3d(0.0,1.0,1.0),
+                                            Eigen::Vector3d(1.0,0.0,0.0),
+                                            Eigen::Vector3d(1.0,0.0,1.0),
+                                            Eigen::Vector3d(1.0,1.0,0.0),
+                                            Eigen::Vector3d(1.0,1.0,1.0) };*/
+    std::vector<Eigen::Vector3d> points;
+    convertToVertArray(V, points);
+    std::vector<std::vector<int>> faces; 
+    convertToFaceVertArray(F, faces);
+    //for (auto& p : points) {
+    //    p += Eigen::Vector3d(-0.5, -0.5, -0.5);
+    //    p *= 0.5;
+    //}
+    //std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
+    //                                        {2,7,6},{2,3,7},{4,6,7},{4,7,5},
+    //                                        {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
+    MeshConvex tester{ points, faces };
+    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    pattern.createCellsfromVoro();
+    std::vector<Cell> cells = pattern.getCells();
+    auto result = clipConvexAgainstCell(tester, cells[0]);
+    return result;
 }
 
 int main(int argc, char *argv[])
@@ -374,15 +444,16 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = "../assets/cube.obj";// "../assets/bunny.stl"; // "../assets/Armadillo.ply"
-    igl::readOBJ(filePath, V, F);
+    string filePath = /*"../assets/cube.obj";*/ "../assets/bunny.stl"; // "../assets/Armadillo.ply"
+    //igl::readOBJ(filePath, V, F);
+     
     //igl::readPLY(filePath, V, F);
+    ifstream stlAscii(filePath);
+    if (stlAscii.is_open()) {
+        igl::readSTL(stlAscii, V, F, N);
+    }
+    // test for bunny 
     
-    //ifstream stlAscii(filePath);
-    //if (stlAscii.is_open()) {
-    //    igl::readSTL(stlAscii, V, F, N);
-    //}
-    testFunc();
   // Tetrahedralize the interior
   igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.414Y", TV, TT, TF);
 
@@ -398,8 +469,14 @@ int main(int argc, char *argv[])
   minCorner = V.colwise().minCoeff();
   maxCorner = V.colwise().maxCoeff();
 
+  points.push_back(Eigen::Vector3d(0.1, -0.4, 0));
+  points.push_back(Eigen::Vector3d(0.3, 0.12, -0.4));
   generateRandomPoints(numPoints, points);
   computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
+
+  auto mesh = testFunc2();
+  V = convertToMatrixXd(mesh.vertices);
+  F = convertToMatrixXi(mesh.faces);
 
   /*std::vector<Eigen::Vector3d> verts; 
   verts.push_back(Eigen::Vector3d(1., 0., 0.));
@@ -471,7 +548,10 @@ int main(int argc, char *argv[])
                             // '0', no model rendering
                             // '*', full model
 #else
-  viewer.data().set_mesh(TV, TF);
+  drawDebugVisuals(viewer);
+  viewer.data().set_mesh(V, F);
+  Eigen::MatrixXd origin(1, 3); origin << 0, 0, 0;
+  viewer.data().add_points(origin, Eigen::RowVector3d(1, 0, 0));
   viewer.data().set_face_based(true);
 #endif
 
