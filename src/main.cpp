@@ -14,6 +14,8 @@
 #include <igl/readSTL.h>
 #include <igl/barycenter.h>
 
+#include <igl/copyleft/cgal/convex_hull.h>
+
 typedef std::pair<int, int> Edge; // Edge represented by pair of vertex indices
 
 using namespace std;
@@ -27,6 +29,9 @@ Eigen::MatrixXi F; // matrix for face indices
 Eigen::MatrixXd B; // matrix for barycenters
 Eigen::MatrixXd N; // matrix for normals
 Eigen::Vector3d minCorner, maxCorner; // min and max corners of mesh's bounding box
+
+Eigen::MatrixXd meshV;
+Eigen::MatrixXi meshF;
 
 // Tetrahedralized interior
 Eigen::MatrixXd TV; // #TV by 3 matrix for vertex positions
@@ -46,6 +51,27 @@ vector<Eigen::MatrixXi> cellEdges;              // Edges of each Voronoi cell re
 // other global variables
 char currKey = '0';
 Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
+
+void convertToVertArray(const Eigen::MatrixXd& vertMatrix, vector<Eigen::Vector3d> &vertVector)
+{
+    for (int i = 0; i < vertMatrix.rows(); ++i) {
+        Eigen::Vector3d vertex = vertMatrix.row(i);
+        vertVector.push_back(vertex);
+    }
+}
+
+void convertToFaceVertArray(const Eigen::MatrixXi& faceVertsMat, vector<vector<int>>& faceVerts)
+{
+    for (int i = 0; i < faceVertsMat.rows(); ++i) {
+        // Temporary vector to hold the vertex indices for the current face
+        std::vector<int> indices;
+
+        for (int j = 0; j < faceVertsMat.cols(); ++j) {
+            indices.push_back(faceVertsMat(i, j));
+        }
+        faceVerts.push_back(indices);
+    }
+}
 
 Eigen::MatrixXd convertToMatrixXd2D(const vector<vector<Eigen::Vector3d>>& vectorOfVectors) {
     // First, calculate the total number of rows required in the matrix
@@ -385,14 +411,16 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = "../assets/cube.obj";// "../assets/bunny.stl"; // "../assets/Armadillo.ply"
-    igl::readOBJ(filePath, V, F);
-    //igl::readPLY(filePath, V, F);
+    string filePath = "../assets/bunny.stl"; // "../assets/Armadillo.ply";// "../assets/cube.obj";//
+    //igl::readOBJ(filePath, meshV, meshF);
+
+    //igl::readPLY(filePath, meshV, meshF);
     
-    //ifstream stlAscii(filePath);
-    //if (stlAscii.is_open()) {
-    //    igl::readSTL(stlAscii, V, F, N);
-    //}
+    ifstream stlAscii(filePath);
+    if (stlAscii.is_open()) {
+        igl::readSTL(stlAscii, meshV, meshF, N);
+    }
+    igl::copyleft::cgal::convex_hull(meshV, V, F);
 
   // Tetrahedralize the interior
   igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.414Y", TV, TT, TF);
@@ -472,7 +500,7 @@ int main(int argc, char *argv[])
   // Plot the tet mesh
 #if DEBUG
   viewer.callback_key_down = &key_down;
-  key_down(viewer, '5', 0); // '5', start off with 50% percentage of model cut;
+  key_down(viewer, '*', 0); // '5', start off with 50% percentage of model cut;
                             // '0', no model rendering
                             // '*', full model
 #else
