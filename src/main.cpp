@@ -12,6 +12,7 @@
 #include <igl/readOBJ.h>
 #include <igl/readPLY.h>
 #include <igl/readSTL.h>
+#include <igl/readOFF.h>
 #include <igl/barycenter.h>
 
 #include "clipper.h"
@@ -48,11 +49,13 @@ vector<Eigen::Vector3d> points;
 vector<vector<Eigen::Vector3d>> cellVertices;   // Vertices of each Voronoi cell
 vector<vector<vector<int>>> cellFaces;          // Faces of each Voronoi cell represented by vertex indices
 vector<Eigen::MatrixXi> cellEdges;              // Edges of each Voronoi cell represented by vertex indices
+K::Point_3 centerOfMass; 
 
 // other global variables
 char currKey = '0';
 Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
 
+std::vector<MeshConvex> clippedMeshConvex;
 
 Eigen::MatrixXd convertToMatrixXd2D(const vector<vector<Eigen::Vector3d>>& vectorOfVectors) {
     // First, calculate the total number of rows required in the matrix
@@ -228,6 +231,7 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     }
     cout << "CF:\n" << CF.format(CleanFmt) << endl;
     viewer.data().set_mesh(CV, CF);
+    viewer.data().set_face_based(true);
 #endif
 }
 
@@ -400,7 +404,7 @@ void computeVoronoiCells(
                     edges.push_back(edge); // Add unique edge
                 }
             }
-
+            std::reverse(face.begin(), face.end());
             faces.push_back(face);
         }
 
@@ -419,40 +423,6 @@ void computeVoronoiCells(
     } while (cl.inc());
 }
 
-MeshConvex testFunc() {
-    std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
-                                            Eigen::Vector3d(0.0,0.0,1.0),
-                                            Eigen::Vector3d(0.0,1.0,0.0),
-                                            Eigen::Vector3d(0.0,1.0,1.0),
-                                            Eigen::Vector3d(1.0,0.0,0.0),
-                                            Eigen::Vector3d(1.0,0.0,1.0),
-                                            Eigen::Vector3d(1.0,1.0,0.0),
-                                            Eigen::Vector3d(1.0,1.0,1.0)};
-    for (auto& p : points) {
-        p += Eigen::Vector3d(-0.5, -0.5, -0.5);
-        p *= 2;
-    }
-    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
-                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
-                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3}};
-    MeshConvex tester{ points, faces };
-    Plane      p{ -Eigen::Vector3d(0.30076923076923073, 0.78199999999999992, -0.60153846153846147), -0.070981538461538513 };
-    Plane      p1{ -Eigen::Vector3d(0.0000000000000000, -0.0000000000000000, 0.98615384615384605), 0.49307692307692302 };
-    Plane      p2{ -Eigen::Vector3d(-0.21692307692307689, 0.0000000000000000, 0.0000000000000000), 0.10846153846153844 };
-    Plane      p3{ -Eigen::Vector3d(0.47040307692307681, 0.0000000000000000, -0.0000000000000000), 0.23520153846153841 };
-    Plane      p5{ -Eigen::Vector3d(2.4083299457253392e-17, 0.0000000000000000, -0.12234461538461533), 0.061172307692307651 };
-    Plane      p4{ -Eigen::Vector3d(0.0000000000000000, -1.0000000000000000, 0.0000000000000000), 0.50000000000000000 };
-    //tester = clipConvexAgainstPlane(tester, p);
-    tester = clipConvexAgainstPlane(tester, p);
-    tester = clipConvexAgainstPlane(tester, p1);
-    tester = clipConvexAgainstPlane(tester, p2);
-    tester = clipConvexAgainstPlane(tester, p3);
-    tester = clipConvexAgainstPlane(tester, p4);
-    tester = clipConvexAgainstPlane(tester, p5);
-
-    return tester;
-}
-
 MeshConvex testFunc2(int cellIndex) {
     /*std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
                                             Eigen::Vector3d(0.0,0.0,1.0),
@@ -461,24 +431,114 @@ MeshConvex testFunc2(int cellIndex) {
                                             Eigen::Vector3d(1.0,0.0,0.0),
                                             Eigen::Vector3d(1.0,0.0,1.0),
                                             Eigen::Vector3d(1.0,1.0,0.0),
-                                            Eigen::Vector3d(1.0,1.0,1.0) };*/
+                                            Eigen::Vector3d(1.0,1.0,1.0) };
+    for (auto& p : points) {
+        p += Eigen::Vector3d(-0.5, -0.5, -0.5);
+        p *= 1;
+    }
+    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
+                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
+                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3} };*/
     std::vector<Eigen::Vector3d> points;
     convertToVertArray(V, points);
     std::vector<std::vector<int>> faces; 
     convertToFaceVertArray(F, faces);
-    //for (auto& p : points) {
-    //    p += Eigen::Vector3d(-0.5, -0.5, -0.5);
-    //    p *= 0.5;
-    //}
-    //std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
-    //                                        {2,7,6},{2,3,7},{4,6,7},{4,7,5},
-    //                                        {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
-    MeshConvex tester{ points, faces };
+    Surface_mesh tester_mesh; 
+    buildSMfromVF(points, faces, tester_mesh);
+    MeshConvex tester{ points, faces, tester_mesh};
     Pattern pattern(cellVertices, cellFaces, cellEdges);
     pattern.createCellsfromVoro();
-    std::vector<Cell> cells = pattern.getCells();
-    auto result = clipConvexAgainstCell(tester, cells[cellIndex]);
+    Cell cell = *pattern.getCells()[cellIndex];
+    auto result = clipConvexAgainstCell(tester, cell);
+    calculateCentroid(result, Eigen::Vector3d(0, 0, 0));
+    translateMesh(result, result.centroid, 0.0);
     return result;
+}
+
+// Draw every cell 
+MeshConvex testFunc3() {
+    // Convert format from V,F matrices
+    std::vector<Eigen::Vector3d> points;
+    convertToVertArray(V, points);
+    std::vector<std::vector<int>> faces;
+    convertToFaceVertArray(F, faces);
+    // Build SM of the whole mesh
+    Surface_mesh tester_mesh;
+    buildSMfromVF(points, faces, tester_mesh);
+    MeshConvex tester{ points, faces, tester_mesh };
+    // Calculate the centroid of the whole mesh use for visualization
+    calculateCentroid(tester, Eigen::Vector3d(0, 0, 0));
+    // Construct Pattern from Voronoi Decomposition
+    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    pattern.createCellsfromVoro();
+    auto cells = pattern.getCells();
+    std::vector<Eigen::Vector3d> final_vertices; 
+    std::vector<std::vector<int>> final_faces; 
+    // Calculate the center of mass for each clipped mesh and 
+    // move it away from the center of mass of the whole mesh
+    for (auto const& c : cells) {
+        int previous_verts = final_vertices.size();
+        auto result = clipConvexAgainstCell(tester, *c);
+        calculateCentroid(result, tester.centroid);
+        translateMesh(result, result.centroid, 0.03);
+        for (size_t i = 0; i < result.faces.size(); i++) {
+            result.faces[i][0] += previous_verts;
+            result.faces[i][1] += previous_verts;
+            result.faces[i][2] += previous_verts;
+        }
+        final_vertices.insert(final_vertices.end(), result.vertices.begin(), result.vertices.end());
+        final_faces.insert(final_faces.end(), result.faces.begin(), result.faces.end());
+    }
+
+    return MeshConvex{final_vertices, final_faces};
+}
+
+// Core script to create splitted meshes 
+// Needed data: V,F matrices of the whole mesh 
+//              cellVertices, cellFaces, cellEdges from Voro Decomp
+// Return:      std::vector<MeshConvex> a list of splitted convex mesh
+std::vector<MeshConvex> createMeshes() {
+    std::vector<Eigen::Vector3d> points;
+    convertToVertArray(V, points);
+    std::vector<std::vector<int>> faces;
+    convertToFaceVertArray(F, faces);
+    Surface_mesh tester_mesh;
+    buildSMfromVF(points, faces, tester_mesh);
+    MeshConvex tester{ points, faces, tester_mesh };
+    calculateCentroid(tester, Eigen::Vector3d(0, 0, 0));
+    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    pattern.createCellsfromVoro();
+    auto cells = pattern.getCells();
+    std::vector<MeshConvex> results; 
+    for (auto const& c : cells) {
+        auto result = clipConvexAgainstCell(tester, *c);
+        calculateCentroid(result, tester.centroid);
+        results.push_back(result);
+    }
+    return results;
+}
+
+// Functional calls for moving each splitted mesh away 
+// from the center of mass of the whole mesh by distance
+// Needed data:     List of splitted mesh 
+//                  distance of how far to move, larger, spreader
+// Return:          MeshConvex stored vertices and faces of every splitted mesh  
+MeshConvex splitMeshes(const std::vector<MeshConvex> meshes, double distance) {
+    std::vector<Eigen::Vector3d> final_vertices;
+    std::vector<std::vector<int>> final_faces;
+    for (auto& mesh : meshes) {
+        int previous_verts = final_vertices.size();
+        MeshConvex mesh_copy = mesh;
+        translateMesh(mesh_copy, mesh_copy.centroid, distance);
+        for (size_t i = 0; i < mesh.faces.size(); i++) {
+            mesh_copy.faces[i][0] += previous_verts;
+            mesh_copy.faces[i][1] += previous_verts;
+            mesh_copy.faces[i][2] += previous_verts;
+        }
+        final_vertices.insert(final_vertices.end(), mesh_copy.vertices.begin(), mesh_copy.vertices.end());
+        final_faces.insert(final_faces.end(), mesh_copy.faces.begin(), mesh_copy.faces.end());
+    }
+    return MeshConvex{ final_vertices, final_faces };
 }
 
 // Helper func, called every time a keyboard button is pressed
@@ -491,7 +551,10 @@ bool key_down_clip(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
     if (key >= '0' && key <= '9')
     {
         int cellIndex = int(key - '0');
-        auto mesh = testFunc2(cellIndex);
+        //auto mesh = testFunc2(cellIndex);
+        //auto mesh = testFunc3();
+        double scale = cellIndex * 0.01;
+        auto mesh = splitMeshes(clippedMeshConvex, scale);
         auto V_temp = convertToMatrixXd(mesh.vertices);
         auto F_temp = convertToMatrixXi(mesh.faces);
         viewer.data().clear();
@@ -509,14 +572,15 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = /*"../assets/cube.obj";*/ "../assets/bunny.stl"; // "../assets/Armadillo.ply"
+    string filePath = /*"../assets/cube.obj";*/ "../assets/bunny.off"; // "../assets/Armadillo.ply"
     //igl::readOBJ(filePath, V, F);
+    igl::readOFF(filePath, V, F);
      
     //igl::readPLY(filePath, V, F);
-    ifstream stlAscii(filePath);
-    if (stlAscii.is_open()) {
-        igl::readSTL(stlAscii, V, F, N);
-    }
+    //ifstream stlAscii(filePath);
+    //if (stlAscii.is_open()) {
+    //    igl::readSTL(stlAscii, V, F, N);
+    //}
     //igl::copyleft::cgal::convex_hull(meshV, V, F);
 
   // Tetrahedralize the interior
@@ -537,10 +601,7 @@ int main(int argc, char *argv[])
   generateRandomPoints(numPoints, points);
   computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
 
-  // test clipping
-  //auto mesh = testFunc2();
-  //V = convertToMatrixXd(mesh.vertices);
-  //F = convertToMatrixXi(mesh.faces);
+  clippedMeshConvex = createMeshes();
   
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
@@ -600,9 +661,13 @@ int main(int argc, char *argv[])
   //                        Visualization                                //
   /////////////////////////////////////////////////////////////////////////
   // Plot the tet mesh
+  viewer.data().clear();
+  viewer.data().set_mesh(V, F);
+  viewer.data().set_face_based(true);
+  drawDebugVisuals(viewer);
 #if DEBUG
   viewer.callback_key_down = &key_down;
-  key_down(viewer, '*', 0); // '5', start off with 50% percentage of model cut;
+  key_down(viewer, '0', 0); // '5', start off with 50% percentage of model cut;
                             // '0', no model rendering
                             // '*', full model
 #else

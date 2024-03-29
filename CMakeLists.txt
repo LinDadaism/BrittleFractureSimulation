@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(fracture)
+project(BFX)
 
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -31,10 +31,10 @@ igl_include(copyleft tetgen)
 #igl_include(restricted triangle)
 
 # Add your project files
-file(GLOB SRC_FILES src/main.cpp
+file(GLOB SRC_FILES
 		    src/vec.cpp src/vec.h
 	 	    src/clipper.cpp src/clipper.h)
-add_executable(${PROJECT_NAME} ${SRC_FILES})
+add_library(${PROJECT_NAME} STATIC ${SRC_FILES})
 
 # Link igl (and the glfw module) to your project
 target_link_libraries(${PROJECT_NAME} PUBLIC 
@@ -72,6 +72,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE voro++)
 # ==============================================================================
 # CGAL
 # ==============================================================================
+# specify toolchain location for cross-compiling
+set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
+ CACHE STRING "Vcpkg toolchain file")
+include(C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake)
+
 # List of headers locations
 find_package(CGAL REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC CGAL::CGAL)
@@ -79,9 +84,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC CGAL::CGAL)
 # ==============================================================================
 # GEOGRAM
 # ==============================================================================
-# set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
-#  CACHE STRING "Vcpkg toolchain file")
-# include(C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake)
 # find_package(Geogram REQUIRED)
 # message(STATUS "Geogram: ${GEOGRAM_LIBRARY}, ${GEOGRAM_INCLUDE_DIR}")
 # target_link_libraries(${PROJECT_NAME} PRIVATE Geogram::geogram)
@@ -89,3 +91,13 @@ target_link_libraries(${PROJECT_NAME} PUBLIC CGAL::CGAL)
 # no need to install manually
 # include(geogram)
 # target_link_libraries(${PROJECT_NAME} PRIVATE geogram)
+
+# Set executable test app
+add_executable(BFXViewer src/main.cpp)
+
+# Set additional configurations for the executable
+target_include_directories(BFXViewer PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:src>  # for clients using the installed library
+)
+target_link_libraries(BFXViewer PUBLIC BFX)

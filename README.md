@@ -20,14 +20,35 @@ BFX depends on external libraries:
 
 Now let's build the Visual Studio project:
 
-3. From the `Brittle-Fracture` directory, run:
+1. From the `Brittle-Fracture` directory, run:
 
     * Windows: `cmake -B build -S . -G "Visual Studio 17 2022" -A x64` to generate the Visual Studio project. You may choose a different Visual Studio version.
-4. Open the generated `fracture.sln` project inside `/build` directory.
-5. Build and Run. Make sure you run the `transpose` target (not `ALL_BUILD`) by right-clicking it and selecting "Set as StartUp Project".
-6. **ATTENTION!** If you are using the `CGAL` module wrapper of `libigl`, you need to move the files in `/gmp` into the following build directories:
+2. Open the generated `BFX.sln` project inside `/build` directory.
+3. Build and Run. Make sure you run the `BFXViewer` target by right-clicking it and selecting "Set as StartUp Project".
+4. **ATTENTION!** If you are using the `CGAL` module wrapper of `libigl`, you need to move the files in `/gmp` into the following build directories:
 
-    - Cut/paste the `/gmp-src` folder into `/build/_deps`
-    - Cut/paste the `/mpfr-src` folder into `/build/_deps`
+    - Copy/paste the `/gmp-src` folder into `/build/_deps`
+    - Copy/paste the `/mpfr-src` folder into `/build/_deps`
 
 A GUI window should launch displaying a 3D cube along with some debugging visuals of the vornoi decomposition.
+
+
+### Troubleshooting
+When you build the project for the **first** time (or re-build), there's an error:
+```
+...\BFX\voro\src\v_base_wl.cc(17,65): error C2888: 'const unsigned int voro::voro_base::wl[4096]': symbol cannot be defined within namespace 'voro'
+```
+This is a weird issue in the `voro++` library, and the trick we found to bypass the error is also very weird. Do the following (order matters):
+
+1. Comment out the 3 lines below in the file and build the project (don't rebuild).
+```
+#include "v_base.hh"
+namespace voro {
+    ...
+}
+```
+2. Uncomment the header line `#include "v_base.hh"`, and build the project (don't rebuild).
+3. Uncomment the namespace parentheses `namespace voro{ ... }`, and build the project (don't rebuild).
+
+There should be no more errors. `voro++.lib` and `voro++.vcxproj` should be successfully built.
+
