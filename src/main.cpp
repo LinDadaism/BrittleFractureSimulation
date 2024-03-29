@@ -423,47 +423,6 @@ void computeVoronoiCells(
     } while (cl.inc());
 }
 
-MeshConvex testFunc() {
-    std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
-                                            Eigen::Vector3d(0.0,0.0,1.0),
-                                            Eigen::Vector3d(0.0,1.0,0.0),
-                                            Eigen::Vector3d(0.0,1.0,1.0),
-                                            Eigen::Vector3d(1.0,0.0,0.0),
-                                            Eigen::Vector3d(1.0,0.0,1.0),
-                                            Eigen::Vector3d(1.0,1.0,0.0),
-                                            Eigen::Vector3d(1.0,1.0,1.0)};
-    for (auto& p : points) {
-        p += Eigen::Vector3d(-0.5, -0.5, -0.5);
-        p *= 1.0;
-    }
-    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
-                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
-                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3}};
-    Surface_mesh sm; 
-    buildSMfromVF(points, faces, sm);
-    MeshConvex tester{ points, faces, sm};
-    Plane      p{ -Eigen::Vector3d(0.30076923076923073, 0.78199999999999992, -0.60153846153846147), -0.070981538461538513 };
-    Plane      p1{ -Eigen::Vector3d(0.0000000000000000, -0.0000000000000000, 0.98615384615384605), 0.49307692307692302 };
-    Plane      p2{ -Eigen::Vector3d(-0.21692307692307689, 0.0000000000000000, 0.0000000000000000), 0.10846153846153844 };
-    Plane      p3{ -Eigen::Vector3d(0.47040307692307681, 0.0000000000000000, -0.0000000000000000), 0.23520153846153841 };
-    Plane      p5{ -Eigen::Vector3d(2.4083299457253392e-17, 0.0000000000000000, -0.12234461538461533), 0.061172307692307651 };
-    Plane      p4{ -Eigen::Vector3d(0.0000000000000000, -1.0000000000000000, 0.0000000000000000), 0.50000000000000000 };
-    //tester = clipConvexAgainstPlane(tester, p);
-    //tester = clipConvexAgainstPlane(tester, p);
-    //tester = clipConvexAgainstPlane(tester, p1);
-    //tester = clipConvexAgainstPlane(tester, p2);
-    //tester = clipConvexAgainstPlane(tester, p3);
-    //tester = clipConvexAgainstPlane(tester, p4);
-    //tester = clipConvexAgainstPlane(tester, p5);
-    tester = clipConvexAgainstPlane2(tester, p1);
-    //tester = clipConvexAgainstPlane2(tester, p1);
-    /*tester = clipConvexAgainstPlane2(tester, p2);
-    tester = clipConvexAgainstPlane2(tester, p3);
-    tester = clipConvexAgainstPlane2(tester, p4);
-    tester = clipConvexAgainstPlane2(tester, p5);*/
-    return tester;
-}
-
 MeshConvex testFunc2(int cellIndex) {
     /*std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
                                             Eigen::Vector3d(0.0,0.0,1.0),
@@ -490,7 +449,7 @@ MeshConvex testFunc2(int cellIndex) {
     Pattern pattern(cellVertices, cellFaces, cellEdges);
     pattern.createCellsfromVoro();
     Cell cell = *pattern.getCells()[cellIndex];
-    auto result = clipConvexAgainstCell2(tester, cell);
+    auto result = clipConvexAgainstCell(tester, cell);
     calculateCentroid(result, Eigen::Vector3d(0, 0, 0));
     translateMesh(result, result.centroid, 0.0);
     return result;
@@ -498,22 +457,28 @@ MeshConvex testFunc2(int cellIndex) {
 
 // Draw every cell 
 MeshConvex testFunc3() {
+    // Convert format from V,F matrices
     std::vector<Eigen::Vector3d> points;
     convertToVertArray(V, points);
     std::vector<std::vector<int>> faces;
     convertToFaceVertArray(F, faces);
+    // Build SM of the whole mesh
     Surface_mesh tester_mesh;
     buildSMfromVF(points, faces, tester_mesh);
     MeshConvex tester{ points, faces, tester_mesh };
+    // Calculate the centroid of the whole mesh use for visualization
     calculateCentroid(tester, Eigen::Vector3d(0, 0, 0));
+    // Construct Pattern from Voronoi Decomposition
     Pattern pattern(cellVertices, cellFaces, cellEdges);
     pattern.createCellsfromVoro();
     auto cells = pattern.getCells();
     std::vector<Eigen::Vector3d> final_vertices; 
     std::vector<std::vector<int>> final_faces; 
+    // Calculate the center of mass for each clipped mesh and 
+    // move it away from the center of mass of the whole mesh
     for (auto const& c : cells) {
         int previous_verts = final_vertices.size();
-        auto result = clipConvexAgainstCell2(tester, *c);
+        auto result = clipConvexAgainstCell(tester, *c);
         calculateCentroid(result, tester.centroid);
         translateMesh(result, result.centroid, 0.03);
         for (size_t i = 0; i < result.faces.size(); i++) {
@@ -528,6 +493,10 @@ MeshConvex testFunc3() {
     return MeshConvex{final_vertices, final_faces};
 }
 
+// Core script to create splitted meshes 
+// Needed data: V,F matrices of the whole mesh 
+//              cellVertices, cellFaces, cellEdges from Voro Decomp
+// Return:      std::vector<MeshConvex> a list of splitted convex mesh
 std::vector<MeshConvex> createMeshes() {
     std::vector<Eigen::Vector3d> points;
     convertToVertArray(V, points);
@@ -542,13 +511,18 @@ std::vector<MeshConvex> createMeshes() {
     auto cells = pattern.getCells();
     std::vector<MeshConvex> results; 
     for (auto const& c : cells) {
-        auto result = clipConvexAgainstCell2(tester, *c);
+        auto result = clipConvexAgainstCell(tester, *c);
         calculateCentroid(result, tester.centroid);
         results.push_back(result);
     }
     return results;
 }
 
+// Functional calls for moving each splitted mesh away 
+// from the center of mass of the whole mesh by distance
+// Needed data:     List of splitted mesh 
+//                  distance of how far to move, larger, spreader
+// Return:          MeshConvex stored vertices and faces of every splitted mesh  
 MeshConvex splitMeshes(const std::vector<MeshConvex> meshes, double distance) {
     std::vector<Eigen::Vector3d> final_vertices;
     std::vector<std::vector<int>> final_faces;

@@ -29,28 +29,18 @@ typedef Surface_mesh::Vertex_index                                   vertex_desc
 typedef Surface_mesh::Face_index                                     face_descriptor;
 namespace PMP = CGAL::Polygon_mesh_processing;
 
-struct Plane {
-    Eigen::Vector3d normal;
-    double distance;  // Distance from the origin
-
-    // Assuming a point is on the positive side if it's in the direction of the normal
-    bool isPointOnPositiveSide(const Eigen::Vector3d& point) const {
-        return normal.dot(point) - distance > 0;
-    }
-};
-
 // representing a convex piece of the mesh, we only need vertices because the piece is convex
 // and we can build the convex hull easily 
 struct MeshConvex {
     std::vector<Eigen::Vector3d> vertices;  // Assuming convex shape is represented by its vertices
     std::vector<std::vector<int>> faces; 
     Surface_mesh convexMesh;                // convenient for cgal operations  
-    Eigen::Vector3d centroid{0, 0, 0};               // center of mass of a set of points
+    Eigen::Vector3d centroid{0, 0, 0};      // center of mass of a set of points
 };
 
 // representing a convex piece of the fracture pattern
 struct Cell {
-    std::vector<Plane> planes;
+    // could possibly add vertices and faces for future computations 
     std::vector<int> convexes; // Store convex index for intersected pieces 
     Surface_mesh cellMesh;            // convenient for cgal operations  
 };
@@ -85,10 +75,7 @@ void buildSMfromVF(const std::vector<Eigen::Vector3d>&, const std::vector<std::v
 void buildVFfromSM(const Surface_mesh&, std::vector<Eigen::Vector3d>&, std::vector<std::vector<int>>&);
 // calculate the centroid of a MeshConvex
 void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d com); 
-// modify vertices in MeshConvex by a vector 
+// move vertices in MeshConvex by scale in direction
 void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale);
-MeshConvex clipConvexAgainstPlane(const MeshConvex& convex, const Plane& plane);
-MeshConvex clipConvexAgainstPlane2(const MeshConvex& convex, const Plane& plane);
 MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell);
-MeshConvex clipConvexAgainstCell2(const MeshConvex& convex, const Cell& cell);
 #endif // !MESH_CLIPPER
