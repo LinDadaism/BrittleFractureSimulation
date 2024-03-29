@@ -73,9 +73,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE voro++)
 # CGAL
 # ==============================================================================
 # specify toolchain location for cross-compiling
-set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
+set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake" # TODO: make sure this matches the vcpkg path on your local machine
  CACHE STRING "Vcpkg toolchain file")
-include(C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake)
+include(C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake) # TODO: make sure this matches the vcpkg path on your local machine
 
 # List of headers locations
 find_package(CGAL REQUIRED)
