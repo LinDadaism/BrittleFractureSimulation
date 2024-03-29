@@ -13,7 +13,7 @@ void Pattern::createCellsfromVoro() {
         auto curCell = o_cellFaces[i];
         Surface_mesh sm; 
         buildSMfromVF(o_cellVertices[i], o_cellFaces[i], sm);
-        sPCell cellptr(new Cell{std::vector<int>{}, sm });
+        sPCell cellptr(new Cell{std::vector<MeshConvex>{}, sm });
         cells.push_back(cellptr);
     }
 }
@@ -123,6 +123,8 @@ void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale) {
 //    return MeshConvex{ resultVertices, resultFaces };
 //}
 
+// Remeber to first detect collision then use this function.
+// The clipped convex is guranteed to have volume greater than 0  
 MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
     // use the copy to do the clipping as cgal clipping modifies on the original meshes
     // could do in place modification if that's faster
@@ -151,8 +153,33 @@ MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
     //}
     PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
     convexm.collect_garbage();
-    std::vector<Eigen::Vector3d> vertices; 
-    std::vector<std::vector<int>> faces; 
-    buildVFfromSM(convexm, vertices, faces);
-    return MeshConvex{ vertices, faces, convexm };
+    double volume = PMP::volume(convexm);
+    std::vector<Eigen::Vector3d> vertices;
+    std::vector<std::vector<int>> faces;
+    if (volume > 0) {
+        buildVFfromSM(convexm, vertices, faces);
+    }
+    return MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume };
+}
+
+// make sure to run this function after clipping such that 
+// cell.convexes contain clipped convex pieces 
+void weldforPattern(Pattern& pattern) {
+    for (auto& cell : pattern.getCells()) {
+        auto cellsm = cell->cellMesh;
+        double total_volume = PMP::volume(cellsm);
+        double sum_volume = 0; 
+        for (auto& convex : cell->convexes) {
+            sum_volume += convex.volume;
+        }
+        if (total_volume - sum_volume < DBL_EPSILON) {
+            // clear all convex pieces and replace with 1 piece
+            // of the same shape and size of the cell
+            cell->convexes.clear();
+            std::vector<Eigen::Vector3d> vertices;
+            std::vector<std::vector<int>> faces;
+            buildVFfromSM(cellsm, vertices, faces);
+            cell->convexes.push_back(MeshConvex{ vertices, faces, cellsm, {0, 0, 0}, total_volume });
+        }
+    }
 }

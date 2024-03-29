@@ -35,23 +35,24 @@ struct MeshConvex {
     std::vector<std::vector<int>> faces; 
     Surface_mesh convexMesh;                // convenient for cgal operations  
     Eigen::Vector3d centroid{0, 0, 0};      // center of mass of a set of points
+    double volume; 
 };
 
 // representing a convex piece of the fracture pattern
 struct Cell {
     // could possibly add vertices and faces for future computations 
-    std::vector<int> convexes; // Store convex index for intersected pieces 
+    std::vector<MeshConvex> convexes; // Store convex index for intersected pieces 
     Surface_mesh cellMesh;            // convenient for cgal operations  
 };
 
 class Pattern 
 {
+public:
     typedef std::vector<std::vector<Eigen::Vector3d>>  AllCellVertices;
     typedef std::vector<std::vector<std::vector<int>>> AllCellFaces;
-    typedef std::vector<Eigen::MatrixXi>               AllCellEdges; 
+    typedef std::vector<Eigen::MatrixXi>               AllCellEdges;
     typedef std::shared_ptr<Cell>                      sPCell;
 
-public:
     Pattern(AllCellVertices, AllCellFaces, AllCellEdges);
     ~Pattern() {};
 
@@ -76,5 +77,8 @@ void buildVFfromSM(const Surface_mesh&, std::vector<Eigen::Vector3d>&, std::vect
 void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d com); 
 // move vertices in MeshConvex by scale in direction
 void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale);
+// use a single cell to mesh clip a single convex piece
 MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell);
+// weld process for each cell in the pattern
+void weldforPattern(Pattern& pattern);
 #endif // !MESH_CLIPPER
