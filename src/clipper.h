@@ -17,7 +17,6 @@
 #include <CGAL/Polygon_mesh_processing/clip.h>
 #include <CGAL/centroid.h>
 #include <vector>
-#include <memory>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef CGAL::Polyhedron_3<K>                                Polyhedron_3;
@@ -25,8 +24,8 @@ typedef K::Point_3                                           Point_3;
 typedef K::Vector_3                                          Vector_3;
 typedef K::Plane_3                                           Plane_3;
 typedef CGAL::Surface_mesh<Point_3>                          Surface_mesh;
-typedef Surface_mesh::Vertex_index                                   vertex_descriptor;
-typedef Surface_mesh::Face_index                                     face_descriptor;
+typedef Surface_mesh::Vertex_index                                   Vertex_descriptor;
+typedef Surface_mesh::Face_index                                     Face_descriptor;
 namespace PMP = CGAL::Polygon_mesh_processing;
 
 // representing a convex piece of the mesh, we only need vertices because the piece is convex

@@ -26,9 +26,9 @@ void buildSMfromVF(const std::vector<Eigen::Vector3d>& vertices, const std::vect
     }
     // put in all faces 
     for (const auto& f : faces) {
-        std::vector<vertex_descriptor> indices; 
+        std::vector<Vertex_descriptor> indices; 
         for (int i : f) {
-            indices.push_back(vertex_descriptor(i));
+            indices.push_back(Vertex_descriptor(i));
         }
         sm.add_face(indices);
     }
