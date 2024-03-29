@@ -8,25 +8,12 @@ std::vector<Pattern::sPCell> Pattern::getCells() {
 }
 
 void Pattern::createCellsfromVoro() {
+    // for every cell create Cell and push to container
     for (size_t i = 0; i < o_cellFaces.size(); ++i) {
         auto curCell = o_cellFaces[i];
-        std::vector<Plane> planes; 
-        for (size_t j = 0; j < curCell.size(); ++j) {
-            int n1 = curCell[j][0];
-            int n2 = curCell[j][1];
-            int n3 = curCell[j][2];
-            Eigen::Vector3d p1 = o_cellVertices[i][n1]; 
-            Eigen::Vector3d p2 = o_cellVertices[i][n2];
-            Eigen::Vector3d p3 = o_cellVertices[i][n3];
-            Eigen::Vector3d v1 = p2 - p1; 
-            Eigen::Vector3d v2 = p3 - p1; 
-            Eigen::Vector3d normal = v1.cross(v2); 
-            double d = normal.dot(p1); 
-            planes.push_back(Plane{ normal, d});
-        }
         Surface_mesh sm; 
         buildSMfromVF(o_cellVertices[i], o_cellFaces[i], sm);
-        sPCell cellptr(new Cell{ planes, std::vector<int>{}, sm });
+        sPCell cellptr(new Cell{std::vector<int>{}, sm });
         cells.push_back(cellptr);
     }
 }
@@ -68,6 +55,9 @@ void buildVFfromSM(const Surface_mesh& sm, std::vector<Eigen::Vector3d>& vertice
 void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d center) {
     auto sm = mesh.convexMesh;
     K::Vector_3 com(0.0, 0.0, 0.0); 
+    // old enter represents the com of the whole mesh and we want 
+    // to calculate the center of mass of a convex piece from the 
+    // whole mesh
     K::Vector_3 old_center(center.x(), center.y(), center.z());
     int count = 0; 
     for (auto v : sm.vertices()) {
@@ -81,84 +71,70 @@ void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d center) {
 }
 
 void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale) {
+    auto d = direction.normalized();
     for (size_t i = 0; i < mesh.vertices.size(); i++) {
-        mesh.vertices[i] += direction.normalized() * scale;
+        mesh.vertices[i] += d * scale;
     }
 }
-
-MeshConvex clipConvexAgainstPlane(const MeshConvex& convex, const Plane& plane) {
-    std::vector<Eigen::Vector3d> newVertices;
-
-    for (const auto& f : convex.faces) {
-        for (size_t i = 0; i < f.size(); ++i) {
-            int cur = f[i]; 
-            int next = f[(i + 1) % f.size()]; 
-            Eigen::Vector3d currentVertice = convex.vertices[cur]; 
-            Eigen::Vector3d nextVertice = convex.vertices[next];
-            bool currentInside = !plane.isPointOnPositiveSide(currentVertice);
-            bool nextInside = !plane.isPointOnPositiveSide(nextVertice);
-            if (currentInside) {
-                newVertices.push_back(currentVertice);
-            }
-            if (currentInside != nextInside) {
-                float t = (plane.distance - plane.normal.dot(currentVertice)) / plane.normal.dot(nextVertice - currentVertice);
-                Eigen::Vector3d intersection = currentVertice + t * (nextVertice - currentVertice);
-                newVertices.push_back(intersection);
-            }
-        }
-    }
-    // create the convex hull
-    std::vector<Point_3> points;
-    for (const auto& v : newVertices) {
-        points.push_back(Point_3(v.x(), v.y(), v.z()));
-    }
-    Surface_mesh sm; 
-    CGAL::convex_hull_3(points.begin(), points.end(), sm);
-    std::vector<Eigen::Vector3d> resultVertices;
-    std::vector<std::vector<int>> resultFaces; 
-    for (const auto& v : sm.vertices()) {
-        const Point_3& p = sm.point(v);
-        resultVertices.push_back(Eigen::Vector3d(p.x(), p.y(), p.z()));
-    }
-    for (const auto& f : sm.faces()) {
-        std::vector<int> face;
-        for (auto vd : vertices_around_face(sm.halfedge(f), sm)) {
-            face.push_back(vd.idx());
-        }
-        resultFaces.push_back(face);
-    }
-    return MeshConvex{ resultVertices, resultFaces };
-}
-
-MeshConvex clipConvexAgainstPlane2(const MeshConvex& convex, const Plane& plane) {
-    MeshConvex convex_copy = convex; 
-    Plane_3 p(plane.normal.x(), plane.normal.y(), plane.normal.z(), plane.distance); 
-    Surface_mesh convexm = convex_copy.convexMesh;
-    bool check = PMP::clip(convexm, p, PMP::parameters::clip_volume(true).use_compact_clipper(true));
-    convexm.collect_garbage();
-    std::vector<Eigen::Vector3d> vertices; 
-    std::vector<std::vector<int>> faces; 
-    buildVFfromSM(convexm, vertices, faces);
-    return MeshConvex{ vertices, faces, convexm };
-}
-
+/*previous code of mesh clipping from scratch, temporarily saved 
+* for possible future reference 
+*/
+//MeshConvex clipConvexAgainstPlane(const MeshConvex& convex, const Plane& plane) {
+//    std::vector<Eigen::Vector3d> newVertices;
+//
+//    for (const auto& f : convex.faces) {
+//        for (size_t i = 0; i < f.size(); ++i) {
+//            int cur = f[i]; 
+//            int next = f[(i + 1) % f.size()]; 
+//            Eigen::Vector3d currentVertice = convex.vertices[cur]; 
+//            Eigen::Vector3d nextVertice = convex.vertices[next];
+//            bool currentInside = !plane.isPointOnPositiveSide(currentVertice);
+//            bool nextInside = !plane.isPointOnPositiveSide(nextVertice);
+//            if (currentInside) {
+//                newVertices.push_back(currentVertice);
+//            }
+//            if (currentInside != nextInside) {
+//                float t = (plane.distance - plane.normal.dot(currentVertice)) / plane.normal.dot(nextVertice - currentVertice);
+//                Eigen::Vector3d intersection = currentVertice + t * (nextVertice - currentVertice);
+//                newVertices.push_back(intersection);
+//            }
+//        }
+//    }
+//    // create the convex hull
+//    std::vector<Point_3> points;
+//    for (const auto& v : newVertices) {
+//        points.push_back(Point_3(v.x(), v.y(), v.z()));
+//    }
+//    Surface_mesh sm; 
+//    CGAL::convex_hull_3(points.begin(), points.end(), sm);
+//    std::vector<Eigen::Vector3d> resultVertices;
+//    std::vector<std::vector<int>> resultFaces; 
+//    for (const auto& v : sm.vertices()) {
+//        const Point_3& p = sm.point(v);
+//        resultVertices.push_back(Eigen::Vector3d(p.x(), p.y(), p.z()));
+//    }
+//    for (const auto& f : sm.faces()) {
+//        std::vector<int> face;
+//        for (auto vd : vertices_around_face(sm.halfedge(f), sm)) {
+//            face.push_back(vd.idx());
+//        }
+//        resultFaces.push_back(face);
+//    }
+//    return MeshConvex{ resultVertices, resultFaces };
+//}
 
 MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
-    MeshConvex curMesh = convex;
-    for (const auto& plane : cell.planes) {
-        curMesh = clipConvexAgainstPlane(curMesh, plane);
-    }
-    return curMesh;
-}
-
-MeshConvex clipConvexAgainstCell2(const MeshConvex& convex, const Cell& cell) {
     // use the copy to do the clipping as cgal clipping modifies on the original meshes
+    // could do in place modification if that's faster
     MeshConvex convex_copy = convex;
     Cell       cell_copy = cell; 
     Surface_mesh convexm = convex_copy.convexMesh; 
     Surface_mesh cellm   = cell_copy.cellMesh;
-    bool a = PMP::does_self_intersect(convexm);
-    bool b = PMP::does_self_intersect(cellm);
+  
+    //Possible code to get rid of degenerated or self-intersect mesh 
+    //commented for now since we only accept convex sound mesh in theory
+    //bool a = PMP::does_self_intersect(convexm);
+    //bool b = PMP::does_self_intersect(cellm);
     //while (a) {
     //    Surface_mesh::Halfedge_index hole_he_index;
     //    for (auto h : convexm.halfedges()) {
@@ -173,10 +149,7 @@ MeshConvex clipConvexAgainstCell2(const MeshConvex& convex, const Cell& cell) {
     //        std::back_inserter(patched_faces),
     //        CGAL::parameters::vertex_point_map(mesh.points()).geom_traits(Kernel()));
     //}
-    //PMP::clip(cellm, convexm, PMP::parameters::clip_volume(true), PMP::parameters::use_compact_clipper(true));
     PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
-    //Surface_mesh result; 
-    //PMP::corefine_and_compute_intersection(convexm, cellm, result);
     convexm.collect_garbage();
     std::vector<Eigen::Vector3d> vertices; 
     std::vector<std::vector<int>> faces; 
