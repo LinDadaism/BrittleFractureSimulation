@@ -42,7 +42,7 @@ Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `bou
 
 // Voronoi diagram
 bool periodic = false;
-int numPoints = 30;
+int numPoints = 10;
 vector<Eigen::Vector3d> points;
 
 // TODO: encapsulate class Compound
