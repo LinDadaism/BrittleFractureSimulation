@@ -15,6 +15,8 @@
 #include <igl/readOFF.h>
 #include <igl/barycenter.h>
 
+#include <chrono>
+
 #include "clipper.h"
 #include "utils.h"
 //#include <igl/copyleft/cgal/convex_hull.h>
@@ -56,7 +58,8 @@ K::Point_3 centerOfMass;
 char currKey = '0';
 Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
 
-std::vector<MeshConvex> clippedMeshConvex;
+std::vector<MeshConvex> clippedMeshConvex;     // Global var for testing mesh clipping 
+std::vector<Pattern::sPCell> gCells;                              // Global var for testing welding 
 
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     // Corners of bounding box
@@ -477,6 +480,84 @@ MeshConvex splitMeshes(const std::vector<MeshConvex> meshes, double distance) {
     return MeshConvex{ final_vertices, final_faces };
 }
 
+void pre_test_welding() {
+    std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
+                                            Eigen::Vector3d(0.0,0.0,1.0),
+                                            Eigen::Vector3d(0.0,1.0,0.0),
+                                            Eigen::Vector3d(0.0,1.0,1.0),
+                                            Eigen::Vector3d(1.0,0.0,0.0),
+                                            Eigen::Vector3d(1.0,0.0,1.0),
+                                            Eigen::Vector3d(1.0,1.0,0.0),
+                                            Eigen::Vector3d(1.0,1.0,1.0) };
+    for (auto& p : points) {
+        p += Eigen::Vector3d(-0.5, -0.5, -0.5);
+        p *= 1;
+    }
+    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
+                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
+                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
+    V = convertToMatrixXd(points); 
+    F = convertToMatrixXi(faces);
+}
+
+//Functional calls to test welding mechanism, it manually creates 8 smaller 
+//individual cubes forming a single large cube.
+void testWelding() {
+    std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
+                                            Eigen::Vector3d(0.0,0.0,1.0),
+                                            Eigen::Vector3d(0.0,1.0,0.0),
+                                            Eigen::Vector3d(0.0,1.0,1.0),
+                                            Eigen::Vector3d(1.0,0.0,0.0),
+                                            Eigen::Vector3d(1.0,0.0,1.0),
+                                            Eigen::Vector3d(1.0,1.0,0.0),
+                                            Eigen::Vector3d(1.0,1.0,1.0) };
+    
+    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
+                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
+                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
+    std::vector<Eigen::Vector3d> direction{ Eigen::Vector3d(0.25, 0.25, 0.25),
+                                            Eigen::Vector3d(0.25, 0.25, -0.25),
+                                            Eigen::Vector3d(0.25, -0.25, 0.25),
+                                            Eigen::Vector3d(0.25, -0.25, -0.25),
+                                            Eigen::Vector3d(-0.25, 0.25, 0.25),
+                                            Eigen::Vector3d(-0.25, 0.25, -0.25),
+                                            Eigen::Vector3d(-0.25, -0.25, 0.25),
+                                            Eigen::Vector3d(-0.25, -0.25, -0.25) };
+    // move each small cube to their correct position and scaling
+    std::vector<MeshConvex> allCubes; 
+    for (size_t i = 0; i < 8; ++i) {
+        auto p = points; 
+        for (auto& eachp : p) {
+            eachp += Eigen::Vector3d(-0.5, -0.5, -0.5);
+            eachp *= 0.5;
+            eachp += direction[i];
+        }
+        Surface_mesh sm; 
+        buildSMfromVF(p, faces, sm);
+        allCubes.push_back(MeshConvex{ p, faces, sm });
+    }
+    clippedMeshConvex = allCubes; // for testing the cube
+    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    pattern.createCellsfromVoro();
+    for (auto& c : pattern.getCells()) {
+        for (auto& cube : allCubes) {
+            auto clipped = clipConvexAgainstCell(cube, *c);
+            // only add to cell's list if intersected
+            if (clipped.volume > 0) {
+                c->convexes.push_back(clipped);
+            }
+        }
+    }
+    // welding
+    weldforPattern(pattern);
+    double sum_v = 0; 
+    gCells = pattern.getCells();
+    for (const auto& c : gCells) {
+        sum_v += c->convexes[0].volume;
+    }
+    std::cout << "Total volume of summing each Cell's first convex piece: " << sum_v << std::endl;
+}
+
 // Helper func, called every time a keyboard button is pressed
 // Slice model at various percentage to view internal tetrahedral structure
 bool key_down_clip(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
@@ -503,14 +584,38 @@ bool key_down_clip(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
     return false;
 }
 
+// Helper func, called every time a keyboard button is pressed
+// Slice model at various percentage to view internal tetrahedral structure
+bool key_down_weld(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
+    using namespace Eigen;
+
+    currKey = key; // keep a global record
+
+    if (key >= '0' && key <= '9')
+    {
+        int cellIndex = int(key - '0');
+        auto mesh = gCells[cellIndex]->convexes[0]; // for testing weld functionality
+        //auto mesh = clippedMeshConvex[cellIndex]; // for testing cube positioning
+        auto V_temp = convertToMatrixXd(mesh.vertices);
+        auto F_temp = convertToMatrixXi(mesh.faces);
+        viewer.data().clear();
+        viewer.data().set_mesh(V_temp, F_temp);
+        viewer.data().set_face_based(true);
+    }
+
+    drawDebugVisuals(viewer);
+
+    return false;
+}
+
 int main(int argc, char *argv[])
 {
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = /*"../assets/cube.obj";*/ "../assets/bunny.off"; // "../assets/Armadillo.ply"
-    //igl::readOBJ(filePath, V, F);
-    igl::readOFF(filePath, V, F);
+    string filePath = "../assets/cube.obj"; /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
+    igl::readOBJ(filePath, V, F);
+    //igl::readOFF(filePath, V, F);
      
     //igl::readPLY(filePath, V, F);
     //ifstream stlAscii(filePath);
@@ -519,7 +624,10 @@ int main(int argc, char *argv[])
     //}
     //igl::copyleft::cgal::convex_hull(meshV, V, F);
 
+
+    pre_test_welding(); // TESTING for welding
   // Tetrahedralize the interior
+   
   igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.414Y", TV, TT, TF);
 
   // Compute barycenters
@@ -530,6 +638,7 @@ int main(int argc, char *argv[])
   //                         Voronoi decomposition                       //
   /////////////////////////////////////////////////////////////////////////
 
+  
   // Get the mesh's bounding box
   minCorner = V.colwise().minCoeff();
   maxCorner = V.colwise().maxCoeff();
@@ -537,8 +646,8 @@ int main(int argc, char *argv[])
   generateRandomPoints(numPoints, points);
   computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
 
-  clippedMeshConvex = createMeshes();
-  
+  //clippedMeshConvex = createMeshes(); // TESTING for mesh clipping
+  testWelding(); // TESTING for welding
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
   /////////////////////////////////////////////////////////////////////////
@@ -607,8 +716,10 @@ int main(int argc, char *argv[])
                             // '0', no model rendering
                             // '*', full model
 #else
-  viewer.callback_key_down = &key_down_clip;
-  key_down_clip(viewer, '0', 0);
+  /*viewer.callback_key_down = &key_down_clip;
+  key_down_clip(viewer, '0', 0);*/
+  viewer.callback_key_down = &key_down_weld;
+  key_down_weld(viewer, '0', 0);
   Eigen::MatrixXd origin(1, 3); origin << 0, 0, 0;
   viewer.data().add_points(origin, Eigen::RowVector3d(1, 0, 0));
 #endif
