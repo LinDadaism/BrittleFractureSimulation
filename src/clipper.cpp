@@ -183,3 +183,48 @@ void weldforPattern(Pattern& pattern) {
         }
     }
 }
+
+Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vector3d p3) {
+    Eigen::Vector3d v(p2.x() - p1.x(), p2.y() - p1.y(), p2.z() - p1.z());
+    Eigen::Vector3d w(p3.x() - p1.x(), p3.y() - p1.y(), p3.z() - p1.z());
+    auto A = (v.y() * w.z()) - (v.z() * w.y());
+    auto B = (v.z() * w.x()) - (v.x() * w.z());
+    auto C = (v.x() * w.y()) - (v.y() * w.x());
+    auto D = -(A * p1.x() + B * p1.y() + C * p1.z());
+    return Eigen::Vector4d(A, B, C, D);
+}
+
+std::vector<Compound> islandDetection(const Compound& old_compound) {
+    // store mapping relation between a face plane and the group index
+    std::unordered_map<Eigen::Vector4d, int*> linker; 
+    std::vector<int> values(old_compound.convexes.size());
+    std::vector<int*> belongings(old_compound.convexes.size()); 
+    std::vector<Compound> results; 
+    // iterate over every face of every convex piece
+    for (size_t i = 0; i < old_compound.convexes.size(); ++i) {
+        auto convex = old_compound.convexes[i];
+        auto vertices = convex.vertices;
+        for (const auto& face : convex.faces) {
+            auto p1 = vertices[face[0]];
+            auto p2 = vertices[face[1]];
+            auto p3 = vertices[face[2]];
+            Eigen::Vector4d plane = createPlane(p1, p2, p3);
+            if (linker.find(-plane) != linker.end()) {
+                *linker[-plane] = i; 
+            }
+            linker[plane] = belongings[i];
+        }
+        *belongings[i] = i;
+    }
+    // comparmentalize 
+    for (size_t i = 0; i < old_compound.convexes.size(); ++i) {
+        Compound com{std::vector<MeshConvex>()};
+        for (size_t j = 0; j < belongings.size(); ++j) {
+            if (*belongings[j] == i) {
+                com.convexes.push_back(old_compound.convexes[j]);
+            }
+        }
+        if (com.convexes.size() > 0) results.push_back(com);
+    }
+    return std::vector<Compound>();
+}

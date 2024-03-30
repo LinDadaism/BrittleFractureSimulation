@@ -557,6 +557,28 @@ void testWelding() {
     }
     std::cout << "Total volume of summing each Cell's first convex piece: " << sum_v << std::endl;
 }
+//////////////////////////////////////////////////////////////////////////////////////////
+// TESTING HASHING 4-Vector
+// testing function for hashing 4-double vector 
+void testHashing() {
+    std::vector<Eigen::Vector3d> t_points; 
+    // generate 3 random points
+    for (size_t i = 0; i < 3; i++) {
+        t_points.push_back(Eigen::Vector3d(double(rand()) / RAND_MAX, double(rand()) / RAND_MAX, double(rand()) / RAND_MAX));
+    }
+    // creating 2 opposite planes 
+    Eigen::Vector4d plane1 = createPlane(t_points[0], t_points[1], t_points[2]);
+    Eigen::Vector4d plane2 = createPlane(t_points[2], t_points[1], t_points[0]);
+    std::cout << "The first plane:\n" << plane1 << std::endl;
+    std::cout << "The second plane:\n" << plane2 << std::endl;
+    auto plane_map = std::unordered_map<Eigen::Vector4d, std::string>();
+    plane_map[plane1] = "hhh"; 
+    plane_map[plane2] = "bbbb"; 
+    bool checker = plane_map.find(plane1) != plane_map.end();
+    bool checker2 = plane_map.find(plane2) != plane_map.end();
+    bool checker3 = plane_map.find(Eigen::Vector4d(0.1, 0.2, 0.3, 0.4)) != plane_map.end();
+}
+//////////////////////////////////////////////////////////////////////////////////////
 
 // Helper func, called every time a keyboard button is pressed
 // Slice model at various percentage to view internal tetrahedral structure
@@ -624,7 +646,7 @@ int main(int argc, char *argv[])
     //}
     //igl::copyleft::cgal::convex_hull(meshV, V, F);
 
-
+    testHashing();
     pre_test_welding(); // TESTING for welding
   // Tetrahedralize the interior
    

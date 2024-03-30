@@ -45,6 +45,10 @@ struct Cell {
     Surface_mesh cellMesh;            // convenient for cgal operations  
 };
 
+struct Compound {
+    std::vector<MeshConvex> convexes; // a compound is consisted of bunch of convex pieces 
+};
+
 class Pattern 
 {
 public:
@@ -81,4 +85,14 @@ void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale);
 MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell);
 // weld process for each cell in the pattern
 void weldforPattern(Pattern& pattern);
+// create a plane from 3 points
+Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vector3d p3);
+// the boring bit - injecting a hash specialisation into the std:: namespace
+// but let's derive from boost's hash class, which is much better
+// in that it allows easy hashing using free functions
+namespace std {
+    template<> struct hash<::Eigen::Vector4d> : boost::hash<::Eigen::Vector4d> {};
+}
+// island detection algorithm 
+std::vector<Compound> islandDetection(const Compound& old_compound);
 #endif // !MESH_CLIPPER
