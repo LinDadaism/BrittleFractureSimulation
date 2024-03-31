@@ -17,6 +17,9 @@
 #include <CGAL/Polygon_mesh_processing/clip.h>
 #include <CGAL/centroid.h>
 #include <vector>
+#include <algorithm>
+#include <unordered_set>
+#include <unordered_map>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef CGAL::Polyhedron_3<K>                                Polyhedron_3;
@@ -36,6 +39,7 @@ struct MeshConvex {
     Surface_mesh convexMesh;                // convenient for cgal operations  
     Eigen::Vector3d centroid{0, 0, 0};      // center of mass of a set of points
     double volume; 
+    std::unordered_set<int> group;               // data structure used in island detection
 };
 
 // representing a convex piece of the fracture pattern
@@ -46,7 +50,7 @@ struct Cell {
 };
 
 struct Compound {
-    std::vector<MeshConvex> convexes; // a compound is consisted of bunch of convex pieces 
+    std::vector<std::shared_ptr<MeshConvex>> convexes; // a compound is consisted of bunch of convex pieces 
 };
 
 class Pattern 

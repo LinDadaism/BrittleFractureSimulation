@@ -1,5 +1,6 @@
 #include "clipper.h"
 
+
 Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
 {}
 
@@ -194,37 +195,54 @@ Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vecto
     return Eigen::Vector4d(A, B, C, D);
 }
 
-std::vector<Compound> islandDetection(const Compound& old_compound) {
+std::vector<Compound> islandDetection(Compound& old_compound) {
     // store mapping relation between a face plane and the group index
-    std::unordered_map<Eigen::Vector4d, int*> linker; 
-    std::vector<int> values(old_compound.convexes.size());
-    std::vector<int*> belongings(old_compound.convexes.size()); 
+    std::unordered_map<Eigen::Vector4d, std::shared_ptr<MeshConvex>> linker;
     std::vector<Compound> results; 
+    std::vector<std::shared_ptr<MeshConvex>> convs = old_compound.convexes;
     // iterate over every face of every convex piece
-    for (size_t i = 0; i < old_compound.convexes.size(); ++i) {
-        auto convex = old_compound.convexes[i];
-        auto vertices = convex.vertices;
-        for (const auto& face : convex.faces) {
+    for (int i = 0; i < convs.size(); ++i) {
+        auto convex = convs[i];
+        auto vertices = convex->vertices;
+        auto cur = std::unordered_set<int>{ i };
+        std::vector<Eigen::Vector4d> planes; 
+        // first iteration update the set of convexes
+        for (const auto& face : convex->faces) {
             auto p1 = vertices[face[0]];
             auto p2 = vertices[face[1]];
             auto p3 = vertices[face[2]];
-            Eigen::Vector4d plane = createPlane(p1, p2, p3);
+            auto plane = createPlane(p1, p2, p3);
+            planes.push_back(plane);
             if (linker.find(-plane) != linker.end()) {
-                *linker[-plane] = i; 
-            }
-            linker[plane] = belongings[i];
-        }
-        *belongings[i] = i;
-    }
-    // comparmentalize 
-    for (size_t i = 0; i < old_compound.convexes.size(); ++i) {
-        Compound com{std::vector<MeshConvex>()};
-        for (size_t j = 0; j < belongings.size(); ++j) {
-            if (*belongings[j] == i) {
-                com.convexes.push_back(old_compound.convexes[j]);
+                auto prev = linker[-plane]->group;
+                cur.insert(prev.begin(), prev.end());
             }
         }
-        if (com.convexes.size() > 0) results.push_back(com);
+        // second iteration update to group variable of convexes
+        for (const auto& p : planes) {
+            linker[p] = convs[i];
+            linker[p]->group = cur;
+            if (linker.find(-p) != linker.end()) {
+                linker[-p]->group = cur;
+            }
+        }
     }
-    return std::vector<Compound>();
+    // use convs to group islands together
+    std::unordered_set<int> cur_convs;
+    std::unordered_set<int> final_convs;
+    for (int l = 0; l < convs.size(); ++l) final_convs.insert(l);
+    for (const auto& c : convs) {
+        if (cur_convs == final_convs) break;
+        auto g = c->group;
+        std::unordered_set<int> inter; 
+        std::set_intersection(cur_convs.begin(), cur_convs.end(), g.begin(), g.end(),
+            std::inserter(inter, inter.begin()));
+        if (inter.size() == 0) {
+            cur_convs.insert(g.begin(), g.end());
+            std::vector<std::shared_ptr<MeshConvex>> new_convex;
+            for (const auto& index : g) new_convex.push_back(convs[index]);
+            results.push_back(Compound{ new_convex });
+        }
+    }
+    return results;
 }

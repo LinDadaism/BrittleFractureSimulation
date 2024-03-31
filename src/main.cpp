@@ -579,7 +579,42 @@ void testHashing() {
     bool checker3 = plane_map.find(Eigen::Vector4d(0.1, 0.2, 0.3, 0.4)) != plane_map.end();
 }
 //////////////////////////////////////////////////////////////////////////////////////
+// TESTING ISLAND DETECTION 
+void testIsland() {
+    std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
+                                            Eigen::Vector3d(0.0,0.0,1.0),
+                                            Eigen::Vector3d(0.0,1.0,0.0),
+                                            Eigen::Vector3d(0.0,1.0,1.0),
+                                            Eigen::Vector3d(1.0,0.0,0.0),
+                                            Eigen::Vector3d(1.0,0.0,1.0),
+                                            Eigen::Vector3d(1.0,1.0,0.0),
+                                            Eigen::Vector3d(1.0,1.0,1.0) };
 
+    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
+                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
+                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
+    std::vector<Eigen::Vector3d> direction{ Eigen::Vector3d(0.25, 0.25, 0.25),
+                                            Eigen::Vector3d(0.25, 0.25, -0.25),
+                                            Eigen::Vector3d(0.25, -0.25, 0.25),
+                                            Eigen::Vector3d(0.25, -0.25, -0.25),
+                                            Eigen::Vector3d(-0.25, 0.25, 0.25),
+                                            Eigen::Vector3d(-0.25, 0.25, -0.25),
+                                            Eigen::Vector3d(-0.25, -0.25, 0.25),
+                                            Eigen::Vector3d(-0.25, -0.25, -0.25) };
+    // move each small cube to their correct position and scaling
+    std::vector<MeshConvex> allCubes;
+    for (size_t i = 0; i < 8; ++i) {
+        auto p = points;
+        for (auto& eachp : p) {
+            eachp += Eigen::Vector3d(-0.5, -0.5, -0.5);
+            eachp *= 0.5;
+            eachp += direction[i];
+        }
+        Surface_mesh sm;
+        buildSMfromVF(p, faces, sm);
+        allCubes.push_back(MeshConvex{ p, faces, sm });
+    }
+}
 // Helper func, called every time a keyboard button is pressed
 // Slice model at various percentage to view internal tetrahedral structure
 bool key_down_clip(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
