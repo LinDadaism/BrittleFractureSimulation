@@ -99,5 +99,5 @@ namespace std {
     template<> struct hash<::Eigen::Vector4d> : boost::hash<::Eigen::Vector4d> {};
 }
 // island detection algorithm 
-std::vector<Compound> islandDetection(const Compound& old_compound);
+std::vector<Compound> islandDetection(Compound& old_compound);
 #endif // !MESH_CLIPPER

@@ -61,6 +61,10 @@ Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
 std::vector<MeshConvex> clippedMeshConvex;     // Global var for testing mesh clipping 
 std::vector<Pattern::sPCell> gCells;           // Global var for testing welding 
 std::vector<Compound> gCompounds;              // Global var for testing island detection 
+std::vector<Compound> gcurCompounds;           // Global var for testing island detection 
+char currKey_island = '0';                     // Global var for testing island detection 
+int  currConvex = 0;                           // Global var for testing island detection 
+
 
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     // Corners of bounding box
@@ -245,6 +249,7 @@ void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
 // TODO: can look into https://doc.cgal.org/latest/Generator/Generator_2random_points_in_tetrahedral_mesh_3_8cpp-example.html#_a9
     std::random_device rd;  // Obtain random number from hardware and seed the generator
     std::mt19937 gen(rd());
+    //std::mt19937 gen(19);
     std::uniform_real_distribution<> disX(minCorner.x(), maxCorner.x());
     std::uniform_real_distribution<> disY(minCorner.y(), maxCorner.y());
     std::uniform_real_distribution<> disZ(minCorner.z(), maxCorner.z());
@@ -682,6 +687,56 @@ bool key_down_weld(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
     return false;
 }
 
+// Helper func, called every time a keyboard button is pressed
+// Slice model at various percentage to view internal tetrahedral structure
+bool key_down_island(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
+    using namespace Eigen;
+
+    currKey = key; // keep a global record
+    if (key >= '0' && key <= '9')
+    {
+        currKey_island = key;
+        int cellIndex = int(currKey_island - '0');
+        Compound temp = gCompounds[cellIndex];
+        gcurCompounds = islandDetection(temp);
+        currConvex = 0;
+    }
+    else if (key == 'n' || 'N' && gcurCompounds.size() > 0) {
+        currConvex = (currConvex + 1) % gcurCompounds.size();
+    }
+    if (gcurCompounds.size() > 0) {
+        Compound com = gcurCompounds[currConvex];
+        std::vector<Eigen::Vector3d> final_vertices;
+        std::vector<std::vector<int>> final_faces;
+        // draw every convexes in current compound
+        for (auto const& c : com.convexes) {
+            int previous_verts = final_vertices.size();
+            int previous_faces = final_faces.size();
+            final_vertices.insert(final_vertices.end(), c->vertices.begin(), c->vertices.end());
+            final_faces.insert(final_faces.end(), c->faces.begin(), c->faces.end());
+            for (size_t i = previous_faces; i < final_faces.size(); i++) {
+                final_faces[i][0] += previous_verts;
+                final_faces[i][1] += previous_verts;
+                final_faces[i][2] += previous_verts;
+            }
+            
+        }
+        auto V_temp = convertToMatrixXd(final_vertices);
+        auto F_temp = convertToMatrixXi(final_faces);
+        viewer.data().clear();
+        viewer.data().set_mesh(V_temp, F_temp);
+        viewer.data().set_face_based(true);
+        drawDebugVisuals(viewer);
+    }
+    else {
+        viewer.data().clear();
+        drawDebugVisuals(viewer);
+    }
+    
+
+    return false;
+}
+
 int main(int argc, char *argv[])
 {
     /////////////////////////////////////////////////////////////////////////
@@ -721,8 +776,8 @@ int main(int argc, char *argv[])
   computeVoronoiCells(points, minCorner, maxCorner, cellVertices, cellFaces, cellEdges);
 
   //clippedMeshConvex = createMeshes(); // TESTING for mesh clipping
-  testWelding(); // TESTING for welding
-  //testIsland();  // TESTING for island detection
+  //testWelding(); // TESTING for welding
+  testIsland();  // TESTING for island detection
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
   /////////////////////////////////////////////////////////////////////////
@@ -792,9 +847,11 @@ int main(int argc, char *argv[])
                             // '*', full model
 #else
   /*viewer.callback_key_down = &key_down_clip;
-  key_down_clip(viewer, '0', 0);*/
+  key_down_clip(viewer, '0', 0);
   viewer.callback_key_down = &key_down_weld;
-  key_down_weld(viewer, '0', 0);
+  key_down_weld(viewer, '0', 0);*/
+  viewer.callback_key_down = &key_down_island;
+  key_down_island(viewer, '0', 0);
   Eigen::MatrixXd origin(1, 3); origin << 0, 0, 0;
   viewer.data().add_points(origin, Eigen::RowVector3d(1, 0, 0));
 #endif

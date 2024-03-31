@@ -197,11 +197,31 @@ Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vecto
     return Eigen::Vector4d(A, B, C, D);
 }
 
+// A custom intersection function used in island detection 
+template<typename T>
+std::unordered_set<T> intersection(const std::unordered_set<T>& set1, const std::unordered_set<T>& set2) {
+    std::unordered_set<T> result;
+
+    // Iterate through the first set and check if each element is in the second set
+    for (const T& element : set1) {
+        if (set2.find(element) != set2.end()) {
+            // If the element is found in the second set, add it to the result
+            result.insert(element);
+        }
+    }
+
+    return result;
+}
+
 std::vector<Compound> islandDetection(Compound& old_compound) {
     // store mapping relation between a face plane and the group index
     std::unordered_map<Eigen::Vector4d, std::shared_ptr<MeshConvex>> linker;
     std::vector<Compound> results; 
     std::vector<std::shared_ptr<MeshConvex>> convs = old_compound.convexes;
+    // clear previous groupings 
+    for (auto& c : old_compound.convexes) {
+        c->group.clear();
+    }
     // iterate over every face of every convex piece
     for (int i = 0; i < convs.size(); ++i) {
         auto convex = convs[i];
@@ -236,9 +256,9 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
     for (const auto& c : convs) {
         if (cur_convs == final_convs) break;
         auto g = c->group;
-        std::unordered_set<int> inter; 
-        std::set_intersection(cur_convs.begin(), cur_convs.end(), g.begin(), g.end(),
-            std::inserter(inter, inter.begin()));
+        std::unordered_set<int> inter = intersection(g, cur_convs);
+        //std::set_intersection(cur_convs.begin(), cur_convs.end(), g.begin(), g.end(),
+        //    std::inserter(inter, inter.begin()));
         if (inter.size() == 0) {
             cur_convs.insert(g.begin(), g.end());
             std::vector<std::shared_ptr<MeshConvex>> new_convex;
