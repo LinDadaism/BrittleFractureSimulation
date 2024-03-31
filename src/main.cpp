@@ -59,7 +59,8 @@ char currKey = '0';
 Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
 
 std::vector<MeshConvex> clippedMeshConvex;     // Global var for testing mesh clipping 
-std::vector<Pattern::sPCell> gCells;                              // Global var for testing welding 
+std::vector<Pattern::sPCell> gCells;           // Global var for testing welding 
+std::vector<Compound> gCompounds;              // Global var for testing island detection 
 
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     // Corners of bounding box
@@ -389,9 +390,9 @@ MeshConvex testFunc2(int cellIndex) {
     pattern.createCellsfromVoro();
     Cell cell = *pattern.getCells()[cellIndex];
     auto result = clipConvexAgainstCell(tester, cell);
-    calculateCentroid(result, Eigen::Vector3d(0, 0, 0));
-    translateMesh(result, result.centroid, 0.0);
-    return result;
+    calculateCentroid(*result, Eigen::Vector3d(0, 0, 0));
+    translateMesh(*result, result->centroid, 0.0);
+    return *result;
 }
 
 // Draw every cell 
@@ -418,15 +419,15 @@ MeshConvex testFunc3() {
     for (auto const& c : cells) {
         int previous_verts = final_vertices.size();
         auto result = clipConvexAgainstCell(tester, *c);
-        calculateCentroid(result, tester.centroid);
-        translateMesh(result, result.centroid, 0.03);
-        for (size_t i = 0; i < result.faces.size(); i++) {
-            result.faces[i][0] += previous_verts;
-            result.faces[i][1] += previous_verts;
-            result.faces[i][2] += previous_verts;
+        calculateCentroid(*result, tester.centroid);
+        translateMesh(*result, result->centroid, 0.03);
+        for (size_t i = 0; i < result->faces.size(); i++) {
+            result->faces[i][0] += previous_verts;
+            result->faces[i][1] += previous_verts;
+            result->faces[i][2] += previous_verts;
         }
-        final_vertices.insert(final_vertices.end(), result.vertices.begin(), result.vertices.end());
-        final_faces.insert(final_faces.end(), result.faces.begin(), result.faces.end());
+        final_vertices.insert(final_vertices.end(), result->vertices.begin(), result->vertices.end());
+        final_faces.insert(final_faces.end(), result->faces.begin(), result->faces.end());
     }
 
     return MeshConvex{final_vertices, final_faces};
@@ -451,8 +452,8 @@ std::vector<MeshConvex> createMeshes() {
     std::vector<MeshConvex> results; 
     for (auto const& c : cells) {
         auto result = clipConvexAgainstCell(tester, *c);
-        calculateCentroid(result, tester.centroid);
-        results.push_back(result);
+        calculateCentroid(*result, tester.centroid);
+        results.push_back(*result);
     }
     return results;
 }
@@ -543,7 +544,7 @@ void testWelding() {
         for (auto& cube : allCubes) {
             auto clipped = clipConvexAgainstCell(cube, *c);
             // only add to cell's list if intersected
-            if (clipped.volume > 0) {
+            if (clipped->volume > 0) {
                 c->convexes.push_back(clipped);
             }
         }
@@ -553,7 +554,7 @@ void testWelding() {
     double sum_v = 0; 
     gCells = pattern.getCells();
     for (const auto& c : gCells) {
-        sum_v += c->convexes[0].volume;
+        sum_v += c->convexes[0]->volume;
     }
     std::cout << "Total volume of summing each Cell's first convex piece: " << sum_v << std::endl;
 }
@@ -594,16 +595,17 @@ void testIsland() {
                                             {2,7,6},{2,3,7},{4,6,7},{4,7,5},
                                             {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
     std::vector<Eigen::Vector3d> direction{ Eigen::Vector3d(0.25, 0.25, 0.25),
-                                            Eigen::Vector3d(0.25, 0.25, -0.25),
+                                            //Eigen::Vector3d(0.25, 0.25, -0.25),
                                             Eigen::Vector3d(0.25, -0.25, 0.25),
-                                            Eigen::Vector3d(0.25, -0.25, -0.25),
-                                            Eigen::Vector3d(-0.25, 0.25, 0.25),
-                                            Eigen::Vector3d(-0.25, 0.25, -0.25),
-                                            Eigen::Vector3d(-0.25, -0.25, 0.25),
-                                            Eigen::Vector3d(-0.25, -0.25, -0.25) };
+                                            //Eigen::Vector3d(0.25, -0.25, -0.25),
+                                            //Eigen::Vector3d(-0.25, 0.25, 0.25),
+                                            //Eigen::Vector3d(-0.25, 0.25, -0.25),
+                                            //Eigen::Vector3d(-0.25, -0.25, 0.25),
+                                            Eigen::Vector3d(-0.25, -0.25, -0.25) 
+                                            };
     // move each small cube to their correct position and scaling
     std::vector<MeshConvex> allCubes;
-    for (size_t i = 0; i < 8; ++i) {
+    for (size_t i = 0; i < direction.size(); ++i) {
         auto p = points;
         for (auto& eachp : p) {
             eachp += Eigen::Vector3d(-0.5, -0.5, -0.5);
@@ -613,6 +615,23 @@ void testIsland() {
         Surface_mesh sm;
         buildSMfromVF(p, faces, sm);
         allCubes.push_back(MeshConvex{ p, faces, sm });
+    }
+    clippedMeshConvex = allCubes; // for testing the cube
+    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    pattern.createCellsfromVoro();
+    for (auto& c : pattern.getCells()) {
+        for (auto& cube : allCubes) {
+            auto clipped = clipConvexAgainstCell(cube, *c);
+            // only add to cell's list if intersected
+            if (clipped->volume > 0) {
+                c->convexes.push_back(clipped);
+            }
+        }
+    }
+    // compound formation 
+    for (const auto& c : pattern.getCells()) {
+        auto com = Compound{c->convexes};
+        gCompounds.push_back(com);
     }
 }
 // Helper func, called every time a keyboard button is pressed
@@ -625,8 +644,6 @@ bool key_down_clip(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
     if (key >= '0' && key <= '9')
     {
         int cellIndex = int(key - '0');
-        //auto mesh = testFunc2(cellIndex);
-        //auto mesh = testFunc3();
         double scale = cellIndex * 0.01;
         auto mesh = splitMeshes(clippedMeshConvex, scale);
         auto V_temp = convertToMatrixXd(mesh.vertices);
@@ -653,8 +670,8 @@ bool key_down_weld(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
         int cellIndex = int(key - '0');
         auto mesh = gCells[cellIndex]->convexes[0]; // for testing weld functionality
         //auto mesh = clippedMeshConvex[cellIndex]; // for testing cube positioning
-        auto V_temp = convertToMatrixXd(mesh.vertices);
-        auto F_temp = convertToMatrixXi(mesh.faces);
+        auto V_temp = convertToMatrixXd(mesh->vertices);
+        auto F_temp = convertToMatrixXi(mesh->faces);
         viewer.data().clear();
         viewer.data().set_mesh(V_temp, F_temp);
         viewer.data().set_face_based(true);
@@ -681,7 +698,7 @@ int main(int argc, char *argv[])
     //}
     //igl::copyleft::cgal::convex_hull(meshV, V, F);
 
-    testHashing();
+    //testHashing();    // TESTING hash for island detection
     pre_test_welding(); // TESTING for welding
   // Tetrahedralize the interior
    
@@ -705,6 +722,7 @@ int main(int argc, char *argv[])
 
   //clippedMeshConvex = createMeshes(); // TESTING for mesh clipping
   testWelding(); // TESTING for welding
+  //testIsland();  // TESTING for island detection
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
   /////////////////////////////////////////////////////////////////////////

@@ -27,8 +27,8 @@ typedef K::Point_3                                           Point_3;
 typedef K::Vector_3                                          Vector_3;
 typedef K::Plane_3                                           Plane_3;
 typedef CGAL::Surface_mesh<Point_3>                          Surface_mesh;
-typedef Surface_mesh::Vertex_index                                   Vertex_descriptor;
-typedef Surface_mesh::Face_index                                     Face_descriptor;
+typedef Surface_mesh::Vertex_index                           Vertex_descriptor;
+typedef Surface_mesh::Face_index                             Face_descriptor;
 namespace PMP = CGAL::Polygon_mesh_processing;
 
 // representing a convex piece of the mesh, we only need vertices because the piece is convex
@@ -41,16 +41,17 @@ struct MeshConvex {
     double volume; 
     std::unordered_set<int> group;               // data structure used in island detection
 };
+typedef std::shared_ptr<MeshConvex>                          spConvex;
 
 // representing a convex piece of the fracture pattern
 struct Cell {
     // could possibly add vertices and faces for future computations 
-    std::vector<MeshConvex> convexes; // Store convex index for intersected pieces 
+    std::vector<spConvex> convexes; // Store convex index for intersected pieces 
     Surface_mesh cellMesh;            // convenient for cgal operations  
 };
 
 struct Compound {
-    std::vector<std::shared_ptr<MeshConvex>> convexes; // a compound is consisted of bunch of convex pieces 
+    std::vector<spConvex> convexes; // a compound is consisted of bunch of convex pieces 
 };
 
 class Pattern 
@@ -86,7 +87,7 @@ void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d com);
 // move vertices in MeshConvex by scale in direction
 void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale);
 // use a single cell to mesh clip a single convex piece
-MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell);
+spConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell);
 // weld process for each cell in the pattern
 void weldforPattern(Pattern& pattern);
 // create a plane from 3 points

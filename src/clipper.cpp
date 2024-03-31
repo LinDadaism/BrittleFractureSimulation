@@ -14,7 +14,7 @@ void Pattern::createCellsfromVoro() {
         auto curCell = o_cellFaces[i];
         Surface_mesh sm; 
         buildSMfromVF(o_cellVertices[i], o_cellFaces[i], sm);
-        sPCell cellptr(new Cell{std::vector<MeshConvex>{}, sm });
+        sPCell cellptr(new Cell{std::vector<spConvex>{}, sm });
         cells.push_back(cellptr);
     }
 }
@@ -126,7 +126,7 @@ void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale) {
 
 // Remeber to first detect collision then use this function.
 // The clipped convex is guranteed to have volume greater than 0  
-MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
+spConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
     // use the copy to do the clipping as cgal clipping modifies on the original meshes
     // could do in place modification if that's faster
     MeshConvex convex_copy = convex;
@@ -160,7 +160,8 @@ MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
     if (volume > 0) {
         buildVFfromSM(convexm, vertices, faces);
     }
-    return MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume };
+    spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume});
+    return result;
 }
 
 // make sure to run this function after clipping such that 
@@ -171,7 +172,7 @@ void weldforPattern(Pattern& pattern) {
         double total_volume = PMP::volume(cellsm);
         double sum_volume = 0; 
         for (auto& convex : cell->convexes) {
-            sum_volume += convex.volume;
+            sum_volume += convex->volume;
         }
         if (total_volume - sum_volume < DBL_EPSILON) {
             // clear all convex pieces and replace with 1 piece
@@ -180,7 +181,8 @@ void weldforPattern(Pattern& pattern) {
             std::vector<Eigen::Vector3d> vertices;
             std::vector<std::vector<int>> faces;
             buildVFfromSM(cellsm, vertices, faces);
-            cell->convexes.push_back(MeshConvex{ vertices, faces, cellsm, {0, 0, 0}, total_volume });
+            spConvex spconvex(new MeshConvex{ vertices, faces, cellsm, {0, 0, 0}, total_volume});
+            cell->convexes.push_back(spconvex);
         }
     }
 }
