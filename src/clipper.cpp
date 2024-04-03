@@ -1,5 +1,6 @@
 #include "clipper.h"
 
+
 Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
 {}
 
@@ -13,7 +14,7 @@ void Pattern::createCellsfromVoro() {
         auto curCell = o_cellFaces[i];
         Surface_mesh sm; 
         buildSMfromVF(o_cellVertices[i], o_cellFaces[i], sm);
-        sPCell cellptr(new Cell{std::vector<MeshConvex>{}, sm });
+        sPCell cellptr(new Cell{std::vector<spConvex>{}, sm });
         cells.push_back(cellptr);
     }
 }
@@ -125,7 +126,7 @@ void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale) {
 
 // Remeber to first detect collision then use this function.
 // The clipped convex is guranteed to have volume greater than 0  
-MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
+spConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
     // use the copy to do the clipping as cgal clipping modifies on the original meshes
     // could do in place modification if that's faster
     MeshConvex convex_copy = convex;
@@ -159,7 +160,8 @@ MeshConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
     if (volume > 0) {
         buildVFfromSM(convexm, vertices, faces);
     }
-    return MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume };
+    spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume});
+    return result;
 }
 
 // make sure to run this function after clipping such that 
@@ -170,7 +172,7 @@ void weldforPattern(Pattern& pattern) {
         double total_volume = PMP::volume(cellsm);
         double sum_volume = 0; 
         for (auto& convex : cell->convexes) {
-            sum_volume += convex.volume;
+            sum_volume += convex->volume;
         }
         if (total_volume - sum_volume < DBL_EPSILON) {
             // clear all convex pieces and replace with 1 piece
@@ -179,7 +181,94 @@ void weldforPattern(Pattern& pattern) {
             std::vector<Eigen::Vector3d> vertices;
             std::vector<std::vector<int>> faces;
             buildVFfromSM(cellsm, vertices, faces);
-            cell->convexes.push_back(MeshConvex{ vertices, faces, cellsm, {0, 0, 0}, total_volume });
+            spConvex spconvex(new MeshConvex{ vertices, faces, cellsm, {0, 0, 0}, total_volume});
+            cell->convexes.push_back(spconvex);
         }
     }
+}
+
+Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vector3d p3) {
+    Eigen::Vector3d v(p2.x() - p1.x(), p2.y() - p1.y(), p2.z() - p1.z());
+    Eigen::Vector3d w(p3.x() - p1.x(), p3.y() - p1.y(), p3.z() - p1.z());
+    auto A = (v.y() * w.z()) - (v.z() * w.y());
+    auto B = (v.z() * w.x()) - (v.x() * w.z());
+    auto C = (v.x() * w.y()) - (v.y() * w.x());
+    auto D = -(A * p1.x() + B * p1.y() + C * p1.z());
+    return Eigen::Vector4d(A, B, C, D);
+}
+
+// A custom intersection function used in island detection 
+template<typename T>
+std::unordered_set<T> intersection(const std::unordered_set<T>& set1, const std::unordered_set<T>& set2) {
+    std::unordered_set<T> result;
+
+    // Iterate through the first set and check if each element is in the second set
+    for (const T& element : set1) {
+        if (set2.find(element) != set2.end()) {
+            // If the element is found in the second set, add it to the result
+            result.insert(element);
+        }
+    }
+
+    return result;
+}
+
+std::vector<Compound> islandDetection(Compound& old_compound) {
+    // store mapping relation between a face plane and the group index
+    std::unordered_map<Eigen::Vector4d, std::shared_ptr<MeshConvex>> linker;
+    std::vector<Compound> results; 
+    std::vector<std::shared_ptr<MeshConvex>> convs = old_compound.convexes;
+    // No need for island detection if there's only 1 piece
+    if (convs.size() < 2) return std::vector<Compound>{old_compound};
+    // clear previous groupings 
+    for (auto& c : old_compound.convexes) {
+        c->group.clear();
+    }
+    // iterate over every face of every convex piece
+    for (int i = 0; i < convs.size(); ++i) {
+        auto convex = convs[i];
+        auto vertices = convex->vertices;
+        auto cur = std::unordered_set<int>{ i };
+        std::vector<Eigen::Vector4d> planes; 
+        // first iteration update the set of convexes
+        for (const auto& face : convex->faces) {
+            auto p1 = vertices[face[0]];
+            auto p2 = vertices[face[1]];
+            auto p3 = vertices[face[2]];
+            auto plane = createPlane(p1, p2, p3);
+            planes.push_back(plane);
+            if (linker.find(-plane) != linker.end()) {
+                auto prev = linker[-plane]->group;
+                cur.insert(prev.begin(), prev.end());
+            }
+        }
+        // second iteration update to group variable of convexes
+        for (const auto& p : planes) {
+            linker[p] = convs[i];
+            linker[p]->group = cur;
+            if (linker.find(-p) != linker.end()) {
+                std::vector<int> temp_group; 
+                for (const auto& prev_group : linker[-p]->group) convs[prev_group]->group = cur;
+                linker[-p]->group = cur;
+            }
+        }
+    }
+    // use convs to group islands together
+    std::unordered_set<int> cur_convs;
+    std::unordered_set<int> final_convs;
+    for (int l = 0; l < convs.size(); ++l) final_convs.insert(l);
+    for (const auto& c : convs) {
+        if (cur_convs == final_convs) break;
+        auto g = c->group;
+        std::unordered_set<int> inter = intersection(g, cur_convs);
+        //std::set_intersection(cur_convs.begin(), cur_convs.end(), g.begin(), g.end(),
+        //    std::inserter(inter, inter.begin()));
+        if (inter.size() == 0) {
+            cur_convs.insert(g.begin(), g.end());
+            std::vector<std::shared_ptr<MeshConvex>> new_convex;
+            for (const auto& index : g) new_convex.push_back(convs[index]);
+            results.push_back(Compound{ new_convex });
+        }
+    }
+    return results;
 }
