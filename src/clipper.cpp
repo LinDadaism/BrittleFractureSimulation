@@ -218,6 +218,8 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
     std::unordered_map<Eigen::Vector4d, std::shared_ptr<MeshConvex>> linker;
     std::vector<Compound> results; 
     std::vector<std::shared_ptr<MeshConvex>> convs = old_compound.convexes;
+    // No need for island detection if there's only 1 piece
+    if (convs.size() < 2) return std::vector<Compound>{old_compound};
     // clear previous groupings 
     for (auto& c : old_compound.convexes) {
         c->group.clear();
@@ -245,6 +247,8 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
             linker[p] = convs[i];
             linker[p]->group = cur;
             if (linker.find(-p) != linker.end()) {
+                std::vector<int> temp_group; 
+                for (const auto& prev_group : linker[-p]->group) convs[prev_group]->group = cur;
                 linker[-p]->group = cur;
             }
         }
