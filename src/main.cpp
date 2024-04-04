@@ -29,7 +29,7 @@ using namespace std;
 
 #define DEBUG       0
 #define DEBUG_VORO  0
-#define VOCAD       0
+#define VOCAD       1
 
 // Input polygon
 Eigen::MatrixXd V; // #V by 3 matrix for vertices
