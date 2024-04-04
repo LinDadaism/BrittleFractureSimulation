@@ -1,6 +1,13 @@
 #include <iostream>
 #include <vector>
 #include <random>
+
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <time.h>
+#include <regex>
+
 #include "voro++.hh"
 #include <igl/opengl/glfw/Viewer.h>
 
@@ -25,6 +32,7 @@
 typedef std::pair<int, int> Edge; // Edge represented by pair of vertex indices
 
 using namespace std;
+//using namespace coacd;
 
 #define DEBUG       0
 #define DEBUG_VORO  0
@@ -579,6 +587,50 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
         key_down_island(viewer, '0', 0);
     }
 }
+
+//void testVoACD(const string& inFilename, const string& outFilename)
+//{
+//    Params params;
+//    params.input_model = inFilename;
+//    params.output_name = outFilename;
+//    Model m;
+//    array<array<double, 3>, 3> rot;
+//
+//    m.LoadOBJ(params.input_model);
+//    vector<double> bbox = m.Normalize();
+//    // m.SaveOBJ("normalized.obj");
+//
+//#if WITH_3RD_PARTY_LIBS
+//    if (params.preprocess_mode == "auto")
+//    {
+//        bool is_manifold = IsManifold(m);
+//        logger::info("Mesh Manifoldness: {}", is_manifold);
+//        if (!is_manifold)
+//            ManifoldPreprocess(params, m);
+//    }
+//    else if (params.preprocess_mode == "on")
+//        ManifoldPreprocess(params, m);
+//#else
+//    bool is_manifold = IsManifold(m);
+//    cout << "Mesh Manifoldness: {}" << is_manifold << endl;
+//    if (!is_manifold)
+//    {
+//        cout << "The mesh is not a 2-manifold! Please enable WITH_3RD_PARTY_LIBS during compilation, or use third-party libraries to preprocess the mesh." << endl;
+//        exit(0);
+//    }
+//
+//#endif
+//
+//    m.SaveOBJ(params.output_name);
+//    if (params.pca)
+//        rot = m.PCA();
+//    vector<Model> parts = Compute(m, params);
+//
+//    RecoverParts(parts, bbox, rot, params);
+//
+//    string objName = regex_replace(params.output_name, regex("wrl"), "obj");
+//    SaveOBJ(objName, parts, params);
+//}
 
 int main(int argc, char *argv[])
 {
