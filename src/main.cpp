@@ -375,7 +375,9 @@ void computeVoronoiCells(
 // Needed data: V,F matrices of the whole mesh 
 //              cellVertices, cellFaces, cellEdges from Voro Decomp
 // Return:      std::vector<MeshConvex> a list of splitted convex mesh
-std::vector<MeshConvex> createMeshes() {
+void createMeshConvexs(std::vector<MeshConvex>& clippedMeshConvex, bool isMeshPrep = false) {
+    clippedMeshConvex.clear();
+
     std::vector<Eigen::Vector3d> points;
     convertToVertArray(V, points);
     
@@ -388,17 +390,38 @@ std::vector<MeshConvex> createMeshes() {
     MeshConvex tester{ points, faces, tester_mesh };
     calculateCentroid(tester, Eigen::Vector3d(0, 0, 0));
     
-    Pattern pattern(gCellVertices, gCellFaces, gCellEdges);
+    vector<vector<Eigen::Vector3d>> cellVertices = gCellVertices;   // Vertices of each Voronoi cell
+    vector<vector<vector<int>>> cellFaces = gCellFaces;
+    
+    // use an 8-cube pattern to decompose mesh first into compound
+    if (isMeshPrep) {
+        cellVertices.clear();
+        cellFaces.clear();
+
+        UnitCube cube;
+        for (size_t i = 0; i < cube.direction.size(); ++i) {
+            auto p = cube.points;
+            for (auto& eachp : p) {
+                eachp += Eigen::Vector3d(-0.5, -0.5, -0.5);
+                eachp *= 0.5;
+                eachp += cube.direction[i];
+            }
+            cellVertices.push_back(p);
+            cellFaces.push_back(cube.faces);
+        }
+
+        //decomposeAABB(minCorner, maxCorner, cellVertices, cellFaces); //TODO: incorrect cell size, a cell covers the whole bunny
+    }
+
+    Pattern pattern(cellVertices, cellFaces, gCellEdges); // we're not using gCellEdges rn, temp allowing to pass in edge info not matching verts&faces
     pattern.createCellsfromVoro();
     auto cells = pattern.getCells();
     
-    std::vector<MeshConvex> results; 
     for (auto const& c : cells) {
         auto result = clipConvexAgainstCell(tester, *c);
         calculateCentroid(*result, tester.centroid);
-        results.push_back(*result);
+        clippedMeshConvex.push_back(*result);
     }
-    return results;
 }
 
 // Functional calls for moving each splitted mesh away 
@@ -534,7 +557,7 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
     }
     if (gTestMode == Clip)
     {
-        gClippedMeshConvex = createMeshes(); // TESTING for mesh clipping
+        createMeshConvexs(gClippedMeshConvex); // TESTING for mesh clipping
 
         viewer.callback_key_down = &key_down_clip;
         key_down_clip(viewer, '0', 0);
@@ -549,7 +572,8 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
     }
     if (gTestMode == Island)
     {
-        testIsland(gClippedMeshConvex, gCellVertices, gCellFaces, gCellEdges, gCompounds);  // TESTING for island detection
+        //createMeshConvexs(gClippedMeshConvex, true); // TODO: uncomment to test custom mesh
+        testIsland(gClippedMeshConvex, gCellVertices, gCellFaces, gCellEdges, gCompounds);  // Hardcoded cubes as input compound
 
         viewer.callback_key_down = &key_down_island;
         key_down_island(viewer, '0', 0);
@@ -625,7 +649,17 @@ int main(int argc, char *argv[])
 
               // Expose variable directly ...
               double doubleVariable = 0.1f;
-              ImGui::InputDouble("Explode Amount", &doubleVariable, 0, 0, "%.4f");
+              if (ImGui::InputDouble("Explode Amount", &doubleVariable, 0, 0, "%.4f"))
+              {
+                auto mesh = splitMeshes(gClippedMeshConvex, doubleVariable);
+                auto V_temp = convertToMatrixXd(mesh.vertices);
+                auto F_temp = convertToMatrixXi(mesh.faces);
+                viewer.data().clear();
+                viewer.data().set_mesh(V_temp, F_temp);
+                viewer.data().set_face_based(true);
+
+                drawDebugVisuals(viewer);
+              }
 
               // ... or using a custom callback
               static bool partialFracture = false;

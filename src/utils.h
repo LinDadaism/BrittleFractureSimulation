@@ -74,3 +74,52 @@ void convertToVertArray(const Eigen::MatrixXd& vertMatrix, std::vector<Eigen::Ve
         vertVector.push_back(vertex);
     }
 }
+
+// decompose an AABB into 8 smaller, equally sized cells
+void decomposeAABB(const Eigen::Vector3d& minCorner, 
+    const Eigen::Vector3d& maxCorner,
+    std::vector<std::vector<Eigen::Vector3d>>& cellVertices,
+    std::vector<std::vector<std::vector<int>>>& cellFaces
+) {
+    // Compute cell dimensions
+    Eigen::Vector3d cellSize = (maxCorner - minCorner) / 2.0;
+
+    // Define faces for each cell using vertex indices
+    std::vector<std::vector<int>> faces = {
+        // Bottom face
+        {0, 1, 2}, {0, 2, 3},
+        // Top face
+        {4, 5, 6}, {4, 6, 7},
+        // Front face
+        {0, 1, 5}, {0, 5, 4},
+        // Back face
+        {2, 3, 7}, {2, 7, 6},
+        // Left face
+        {0, 3, 7}, {0, 7, 4},
+        // Right face
+        {1, 2, 6}, {1, 6, 5}
+    };
+
+    // Compute vertices for each of the 8 cells
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 2; ++j) {
+            for (int k = 0; k < 2; ++k) {
+                Eigen::Vector3d baseCorner = minCorner + Eigen::Vector3d(i * cellSize.x(), j * cellSize.y(), k * cellSize.z());
+                std::vector<Eigen::Vector3d> vertices = {
+                    baseCorner,
+                    baseCorner + Eigen::Vector3d(cellSize.x(), 0, 0),
+                    baseCorner + Eigen::Vector3d(cellSize.x(), cellSize.y(), 0),
+                    baseCorner + Eigen::Vector3d(0, cellSize.y(), 0),
+                    baseCorner + Eigen::Vector3d(0, 0, cellSize.z()),
+                    baseCorner + Eigen::Vector3d(cellSize.x(), 0, cellSize.z()),
+                    baseCorner + Eigen::Vector3d(cellSize.x(), cellSize.y(), cellSize.z()),
+                    baseCorner + Eigen::Vector3d(0, cellSize.y(), cellSize.z())
+                };
+                cellVertices.push_back(vertices);
+                
+                // All cells have the same faces, so we assign the same face indices to each cell
+                cellFaces.push_back(faces);
+            }
+        }
+    }
+}

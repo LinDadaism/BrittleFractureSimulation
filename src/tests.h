@@ -13,6 +13,30 @@ typedef vector<vector<Eigen::Vector3d>> VoroVerts;
 typedef vector<vector<vector<int>>>     VoroFaces;
 typedef vector<Eigen::MatrixXi>         VoroEdges;
 
+struct UnitCube {
+    vector<Eigen::Vector3d> points{ Eigen::Vector3d(0.0,0.0,0.0),
+                                            Eigen::Vector3d(0.0,0.0,1.0),
+                                            Eigen::Vector3d(0.0,1.0,0.0),
+                                            Eigen::Vector3d(0.0,1.0,1.0),
+                                            Eigen::Vector3d(1.0,0.0,0.0),
+                                            Eigen::Vector3d(1.0,0.0,1.0),
+                                            Eigen::Vector3d(1.0,1.0,0.0),
+                                            Eigen::Vector3d(1.0,1.0,1.0) };
+
+    vector<vector<int>> faces{ {0,6,4},{0,2,6},{0,3,2},{0,1,3},
+                                                {2,7,6},{2,3,7},{4,6,7},{4,7,5},
+                                                {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
+
+    vector<Eigen::Vector3d> direction{ Eigen::Vector3d(0.25, 0.25, 0.25),
+                                                Eigen::Vector3d(0.25, 0.25, -0.25),
+                                                Eigen::Vector3d(0.25, -0.25, 0.25),
+                                                Eigen::Vector3d(0.25, -0.25, -0.25),
+                                                Eigen::Vector3d(-0.25, 0.25, 0.25),
+                                                Eigen::Vector3d(-0.25, 0.25, -0.25),
+                                                Eigen::Vector3d(-0.25, -0.25, 0.25),
+                                                Eigen::Vector3d(-0.25, -0.25, -0.25) };
+};
+
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // TEST MESH CLIPPING
@@ -120,23 +144,14 @@ MeshConvex testFunc3(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
 //////////////////////////////////////////////////////////////////////////////////////////
 
 void pre_test_welding(Eigen::MatrixXd& V, Eigen::MatrixXi& F) {
-    std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
-                                            Eigen::Vector3d(0.0,0.0,1.0),
-                                            Eigen::Vector3d(0.0,1.0,0.0),
-                                            Eigen::Vector3d(0.0,1.0,1.0),
-                                            Eigen::Vector3d(1.0,0.0,0.0),
-                                            Eigen::Vector3d(1.0,0.0,1.0),
-                                            Eigen::Vector3d(1.0,1.0,0.0),
-                                            Eigen::Vector3d(1.0,1.0,1.0) };
-    for (auto& p : points) {
+    UnitCube cube;
+    for (auto& p : cube.points) {
         p += Eigen::Vector3d(-0.5, -0.5, -0.5);
         //p *= 1;
     }
-    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
-                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
-                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
-    V = convertToMatrixXd(points);
-    F = convertToMatrixXi(faces);
+
+    V = convertToMatrixXd(cube.points);
+    F = convertToMatrixXi(cube.faces);
 }
 
 //Functional calls to test welding mechanism, it manually creates 8 smaller 
@@ -147,39 +162,20 @@ void testWelding(std::vector<MeshConvex>& clippedMeshConvex,
     const VoroEdges& cellEdges,
     std::vector<Pattern::sPCell>& gCells
 ) {
-    std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
-                                            Eigen::Vector3d(0.0,0.0,1.0),
-                                            Eigen::Vector3d(0.0,1.0,0.0),
-                                            Eigen::Vector3d(0.0,1.0,1.0),
-                                            Eigen::Vector3d(1.0,0.0,0.0),
-                                            Eigen::Vector3d(1.0,0.0,1.0),
-                                            Eigen::Vector3d(1.0,1.0,0.0),
-                                            Eigen::Vector3d(1.0,1.0,1.0) };
+    UnitCube cube;
 
-    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
-                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
-                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
-    std::vector<Eigen::Vector3d> direction{ Eigen::Vector3d(0.25, 0.25, 0.25),
-                                            Eigen::Vector3d(0.25, 0.25, -0.25),
-                                            Eigen::Vector3d(0.25, -0.25, 0.25),
-                                            Eigen::Vector3d(0.25, -0.25, -0.25),
-                                            Eigen::Vector3d(-0.25, 0.25, 0.25),
-                                            Eigen::Vector3d(-0.25, 0.25, -0.25),
-                                            Eigen::Vector3d(-0.25, -0.25, 0.25),
-                                            Eigen::Vector3d(-0.25, -0.25, -0.25) };
-    
     // move each small cube to their correct position and scaling
     std::vector<MeshConvex> allCubes;
     for (size_t i = 0; i < 8; ++i) {
-        auto p = points;
+        auto p = cube.points;
         for (auto& eachp : p) {
             eachp += Eigen::Vector3d(-0.5, -0.5, -0.5);
             eachp *= 0.5;
-            eachp += direction[i];
+            eachp += cube.direction[i];
         }
         Surface_mesh sm;
-        buildSMfromVF(p, faces, sm);
-        allCubes.push_back(MeshConvex{ p, faces, sm });
+        buildSMfromVF(p, cube.faces, sm);
+        allCubes.push_back(MeshConvex{ p, cube.faces, sm });
     }
     
     clippedMeshConvex = allCubes; // for testing the cube
@@ -239,63 +235,54 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
     const VoroVerts& cellVertices,
     const VoroFaces& cellFaces,
     const VoroEdges& cellEdges,
-    std::vector<Compound>& gCompounds
-) {
-    std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
-                                            Eigen::Vector3d(0.0,0.0,1.0),
-                                            Eigen::Vector3d(0.0,1.0,0.0),
-                                            Eigen::Vector3d(0.0,1.0,1.0),
-                                            Eigen::Vector3d(1.0,0.0,0.0),
-                                            Eigen::Vector3d(1.0,0.0,1.0),
-                                            Eigen::Vector3d(1.0,1.0,0.0),
-                                            Eigen::Vector3d(1.0,1.0,1.0) };
+    std::vector<Compound>& gCompounds,
+    bool isCustomMesh = false
+) { 
+    if (!isCustomMesh) {
+        UnitCube cube;
+        std::vector<Eigen::Vector3d> direction{ Eigen::Vector3d(0.25, 0.25, 0.25),
+                                                Eigen::Vector3d(0.25, 0.25, -0.25),
+            //Eigen::Vector3d(0.25, -0.25, 0.25),
+            //Eigen::Vector3d(0.25, -0.25, -0.25),
+            //Eigen::Vector3d(-0.25, 0.25, 0.25),
+            //Eigen::Vector3d(-0.25, 0.25, -0.25),
+            Eigen::Vector3d(-0.25, -0.25, 0.25),
+            Eigen::Vector3d(-0.25, -0.25, -0.25)
+        };
 
-    std::vector<std::vector<int>> faces = { {0,6,4},{0,2,6},{0,3,2},{0,1,3},
-                                            {2,7,6},{2,3,7},{4,6,7},{4,7,5},
-                                            {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
-    
-    std::vector<Eigen::Vector3d> direction{ Eigen::Vector3d(0.25, 0.25, 0.25),
-                                            Eigen::Vector3d(0.25, 0.25, -0.25),
-                                            //Eigen::Vector3d(0.25, -0.25, 0.25),
-                                            //Eigen::Vector3d(0.25, -0.25, -0.25),
-                                            //Eigen::Vector3d(-0.25, 0.25, 0.25),
-                                            //Eigen::Vector3d(-0.25, 0.25, -0.25),
-                                            Eigen::Vector3d(-0.25, -0.25, 0.25),
-                                            Eigen::Vector3d(-0.25, -0.25, -0.25)
-    };
-
-    // move each small cube to their correct position and scaling
-    std::vector<MeshConvex> allCubes;
-    for (size_t i = 0; i < direction.size(); ++i) {
-        auto p = points;
-        for (auto& eachp : p) {
-            eachp += Eigen::Vector3d(-0.5, -0.5, -0.5);
-            eachp *= 0.5;
-            eachp += direction[i];
+        // move each small cube to their correct position and scaling
+        std::vector<MeshConvex> allCubes;
+        for (size_t i = 0; i < direction.size(); ++i) {
+            auto p = cube.points;
+            for (auto& eachp : p) {
+                eachp += Eigen::Vector3d(-0.5, -0.5, -0.5);
+                eachp *= 0.5;
+                eachp += direction[i];
+            }
+            Surface_mesh sm;
+            buildSMfromVF(p, cube.faces, sm);
+            allCubes.push_back(MeshConvex{ p, cube.faces, sm });
         }
-        Surface_mesh sm;
-        buildSMfromVF(p, faces, sm);
-        allCubes.push_back(MeshConvex{ p, faces, sm });
+
+        clippedMeshConvex = allCubes; // for testing the cube
     }
-
-    clippedMeshConvex = allCubes; // for testing the cube
-
+    
     // generate voronoi diagram
     Pattern pattern(cellVertices, cellFaces, cellEdges);
     pattern.createCellsfromVoro();
 
-    for (auto& c : pattern.getCells()) {
-        for (auto& cube : allCubes) {
-            auto clipped = clipConvexAgainstCell(cube, *c);
+    for (auto& cell : pattern.getCells()) {
+        for (auto& convex : clippedMeshConvex) {
+            auto clipped = clipConvexAgainstCell(convex, *cell);
             // only add to cell's list if intersected
             if (clipped->volume > 0) {
-                c->convexes.push_back(clipped);
+                cell->convexes.push_back(clipped);
             }
         }
     }
     // compound formation 
-    for (const auto& c : pattern.getCells()) {
-        auto com = Compound{ c->convexes };
+    for (const auto& cell : pattern.getCells()) {
+        auto com = Compound{ cell->convexes };
         gCompounds.push_back(com);
     }
 }
