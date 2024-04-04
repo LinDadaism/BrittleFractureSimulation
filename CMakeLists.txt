@@ -34,7 +34,8 @@ igl_include(copyleft tetgen)
 file(GLOB SRC_FILES
 		    src/vec.cpp src/vec.h
 	 	    src/clipper.cpp src/clipper.h
-        src/utils.h)
+        src/utils.h
+        src/tests.h)
 add_library(${PROJECT_NAME} STATIC ${SRC_FILES})
 
 # Link igl (and the glfw module) to your project

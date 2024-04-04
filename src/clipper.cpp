@@ -56,7 +56,7 @@ void buildVFfromSM(const Surface_mesh& sm, std::vector<Eigen::Vector3d>& vertice
 void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d center) {
     auto sm = mesh.convexMesh;
     K::Vector_3 com(0.0, 0.0, 0.0); 
-    // old enter represents the com of the whole mesh and we want 
+    // old center represents the com of the whole mesh and we want 
     // to calculate the center of mass of a convex piece from the 
     // whole mesh
     K::Vector_3 old_center(center.x(), center.y(), center.z());

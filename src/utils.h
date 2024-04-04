@@ -1,3 +1,6 @@
+/**
+ * This file is more of math utility functions.
+**/
 #pragma once
 
 #include <Eigen/Dense>
