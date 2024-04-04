@@ -2,11 +2,11 @@
 #include <vector>
 #include <random>
 
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <time.h>
-#include <regex>
+//#include <fstream>
+//#include <sstream>
+//#include <string>
+//#include <time.h>
+//#include <regex>
 
 #include "voro++.hh"
 #include <igl/opengl/glfw/Viewer.h>
@@ -637,7 +637,7 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = "../assets/cube.obj"; /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
+    string filePath = "../assets/results/SnowFlake_out.obj"; /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      
