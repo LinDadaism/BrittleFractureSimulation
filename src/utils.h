@@ -3,6 +3,7 @@
 **/
 #pragma once
 
+#include <Windows.h>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
@@ -122,4 +123,44 @@ void decomposeAABB(const Eigen::Vector3d& minCorner,
             }
         }
     }
+}
+
+// We use CreateProcess() to run an external executable 
+// https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes
+bool executeCommand(LPCTSTR lpApplicationName, LPSTR lpCommand)
+{
+    // additional information
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+
+    // set the size of the structures
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    // start the program up
+    if (!CreateProcess(lpApplicationName,   // the module to be executed, can be NULL. In that case, the module name must be the first white space–delimited token in the lpCommand string. 
+            lpCommand,      // Command line
+            NULL,           // Process handle not inheritable
+            NULL,           // Thread handle not inheritable
+            FALSE,          // Set handle inheritance to FALSE
+            0,              // No creation flags
+            NULL,           // Use parent's environment block
+            NULL,           // Use parent's starting directory 
+            &si,            // Pointer to STARTUPINFO structure
+            &pi)            // Pointer to PROCESS_INFORMATION structure (removed extra parentheses)
+        ) 
+    {
+        printf("CreateProcess failed (%d).\n", GetLastError());
+        return false;
+    }
+
+    // Wait until child process exits.
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    // Close process and thread handles. 
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return true;
 }

@@ -2,12 +2,6 @@
 #include <vector>
 #include <random>
 
-//#include <fstream>
-//#include <sstream>
-//#include <string>
-//#include <time.h>
-//#include <regex>
-
 #include "voro++.hh"
 #include <igl/opengl/glfw/Viewer.h>
 
@@ -32,10 +26,10 @@
 typedef std::pair<int, int> Edge; // Edge represented by pair of vertex indices
 
 using namespace std;
-//using namespace coacd;
 
 #define DEBUG       0
 #define DEBUG_VORO  0
+#define VOCAD       0
 
 // Input polygon
 Eigen::MatrixXd V; // #V by 3 matrix for vertices
@@ -588,56 +582,12 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
     }
 }
 
-//void testVoACD(const string& inFilename, const string& outFilename)
-//{
-//    Params params;
-//    params.input_model = inFilename;
-//    params.output_name = outFilename;
-//    Model m;
-//    array<array<double, 3>, 3> rot;
-//
-//    m.LoadOBJ(params.input_model);
-//    vector<double> bbox = m.Normalize();
-//    // m.SaveOBJ("normalized.obj");
-//
-//#if WITH_3RD_PARTY_LIBS
-//    if (params.preprocess_mode == "auto")
-//    {
-//        bool is_manifold = IsManifold(m);
-//        logger::info("Mesh Manifoldness: {}", is_manifold);
-//        if (!is_manifold)
-//            ManifoldPreprocess(params, m);
-//    }
-//    else if (params.preprocess_mode == "on")
-//        ManifoldPreprocess(params, m);
-//#else
-//    bool is_manifold = IsManifold(m);
-//    cout << "Mesh Manifoldness: {}" << is_manifold << endl;
-//    if (!is_manifold)
-//    {
-//        cout << "The mesh is not a 2-manifold! Please enable WITH_3RD_PARTY_LIBS during compilation, or use third-party libraries to preprocess the mesh." << endl;
-//        exit(0);
-//    }
-//
-//#endif
-//
-//    m.SaveOBJ(params.output_name);
-//    if (params.pca)
-//        rot = m.PCA();
-//    vector<Model> parts = Compute(m, params);
-//
-//    RecoverParts(parts, bbox, rot, params);
-//
-//    string objName = regex_replace(params.output_name, regex("wrl"), "obj");
-//    SaveOBJ(objName, parts, params);
-//}
-
 int main(int argc, char *argv[])
 {
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = "../assets/results/SnowFlake_out.obj"; /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
+    string filePath = "../assets/obj/cube.obj"; /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      
@@ -646,13 +596,26 @@ int main(int argc, char *argv[])
     //if (stlAscii.is_open()) {
     //    igl::readSTL(stlAscii, V, F, N);
     //}
-
-    //testHashing();    // TESTING hash for island detection
   
     // Tetrahedralize the interior
   igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.414Y", TV, TT, TF);
   // Compute barycenters
   igl::barycenter(TV, TT, B);
+
+#if VOCAD
+  // run CoACD executable to decompose surface mesh into convex hulls
+  LPCSTR applicationName = "..\\coacd.exe";
+  char commandLine[] = "-i ..\\assets\\obj\\SnowFlake.obj -o ..\\assets\\results\\SnowFlake_out.obj -ro ..\\assets\\results\\SnowFlake_remesh.obj";
+  if (executeCommand(applicationName, commandLine))
+  {
+      cout << "CoACD executed successfully!" << endl;
+  }
+  else
+  {
+      cout << "CoACD execution failed!" << endl;
+      return -1;
+  }
+#endif
 
   /////////////////////////////////////////////////////////////////////////
   //                         Voronoi decomposition                       //

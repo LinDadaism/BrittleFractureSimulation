@@ -84,12 +84,6 @@ find_package(CGAL REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC CGAL::CGAL)
 
 # ==============================================================================
-# CoACD
-# ==============================================================================
-include(coacd)
-target_link_libraries(${PROJECT_NAME} PRIVATE coacd)
-
-# ==============================================================================
 # GEOGRAM
 # ==============================================================================
 # find_package(Geogram REQUIRED)
