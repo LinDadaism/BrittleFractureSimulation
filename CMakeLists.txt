@@ -84,17 +84,6 @@ include(C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake) # TODO: make sure this ma
 find_package(CGAL REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC CGAL::CGAL)
 
-# ==============================================================================
-# GEOGRAM
-# ==============================================================================
-# find_package(Geogram REQUIRED)
-# message(STATUS "Geogram: ${GEOGRAM_LIBRARY}, ${GEOGRAM_INCLUDE_DIR}")
-# target_link_libraries(${PROJECT_NAME} PRIVATE Geogram::geogram)
-
-# no need to install manually
-# include(geogram)
-# target_link_libraries(${PROJECT_NAME} PRIVATE geogram)
-
 # Set executable test app
 add_executable(BFXViewer src/main.cpp)
 
