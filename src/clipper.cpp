@@ -4,17 +4,25 @@
 Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
 {}
 
-std::vector<Pattern::sPCell> Pattern::getCells() {
+std::vector<Pattern::spCell> Pattern::getCells() {
     return cells;
+}
+
+Pattern::AllCellVertices Pattern::getVertices() {
+    return o_cellVertices;
+}
+
+Pattern::AllCellFaces Pattern::getFaces() {
+    return o_cellFaces;
 }
 
 void Pattern::createCellsfromVoro() {
     // for every cell create Cell and push to container
-    for (size_t i = 0; i < o_cellFaces.size(); ++i) {
+    for (int i = 0; i < o_cellFaces.size(); ++i) {
         auto curCell = o_cellFaces[i];
         Surface_mesh sm; 
         buildSMfromVF(o_cellVertices[i], o_cellFaces[i], sm);
-        sPCell cellptr(new Cell{std::vector<spConvex>{}, sm });
+        spCell cellptr(new Cell{i, std::vector<spConvex>{}, sm });
         cells.push_back(cellptr);
     }
 }
@@ -126,7 +134,7 @@ void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale) {
 
 // Remeber to first detect collision then use this function.
 // The clipped convex is guranteed to have volume greater than 0  
-spConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
+bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex& out_convex) {
     // use the copy to do the clipping as cgal clipping modifies on the original meshes
     // could do in place modification if that's faster
     MeshConvex convex_copy = convex;
@@ -157,11 +165,16 @@ spConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell) {
     double volume = PMP::volume(convexm);
     std::vector<Eigen::Vector3d> vertices;
     std::vector<std::vector<int>> faces;
+    // double check that they actually intersected 
     if (volume > 0) {
         buildVFfromSM(convexm, vertices, faces);
     }
-    spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume});
-    return result;
+    else {
+        return false;
+    }
+    spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
+    out_convex = result;
+    return true;
 }
 
 // make sure to run this function after clipping such that 
@@ -178,6 +191,7 @@ void weldforPattern(Pattern& pattern) {
             // clear all convex pieces and replace with 1 piece
             // of the same shape and size of the cell
             cell->convexes.clear();
+            auto id = cell->id; 
             std::vector<Eigen::Vector3d> vertices;
             std::vector<std::vector<int>> faces;
             buildVFfromSM(cellsm, vertices, faces);
@@ -271,4 +285,27 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
         }
     }
     return results;
+}
+
+// The core fracture algorihm pipeline  
+std::vector<Compound> fracturePipeline(Compound& compound, Pattern pattern) {
+    //TODO: alignmnet First Step: Alignment
+    //TODO: acceleration structure!!!!! Second Step: Intersection 
+    for (auto& cell : pattern.getCells()) {
+        for (const auto& convex : compound.convexes) {
+            spConvex clipped(new MeshConvex);
+            if (clipConvexAgainstCell(*convex, *cell, clipped)) cell->convexes.push_back(clipped);
+        }
+    }
+    //Third Step: Welding
+    weldforPattern(pattern);
+    //Fourth Step: Compound Formation + Island Detection
+    std::vector<Compound> fractured;
+    for (const auto& cell : pattern.getCells()) {
+        if (cell->convexes.size() > 0) {
+            auto cellCompounds = islandDetection(Compound{ cell->convexes });
+            for (const auto& c : cellCompounds) fractured.push_back(c);
+        }
+    }
+    return fractured;
 }

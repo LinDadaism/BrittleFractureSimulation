@@ -31,6 +31,8 @@ armadillo.stl
 *.exe
 *.out
 *.app
+# except the coacd
+!coacd.exe
 
 *.un~
 *.swo

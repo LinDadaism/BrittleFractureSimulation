@@ -34,6 +34,7 @@ igl_include(copyleft tetgen)
 file(GLOB SRC_FILES
 		    src/vec.cpp src/vec.h
 	 	    src/clipper.cpp src/clipper.h
+		    src/meshprep.cpp src/meshprep.h
         src/utils.h
         src/tests.h)
 add_library(${PROJECT_NAME} STATIC ${SRC_FILES})
@@ -82,17 +83,6 @@ include(C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake) # TODO: make sure this ma
 # List of headers locations
 find_package(CGAL REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC CGAL::CGAL)
-
-# ==============================================================================
-# GEOGRAM
-# ==============================================================================
-# find_package(Geogram REQUIRED)
-# message(STATUS "Geogram: ${GEOGRAM_LIBRARY}, ${GEOGRAM_INCLUDE_DIR}")
-# target_link_libraries(${PROJECT_NAME} PRIVATE Geogram::geogram)
-
-# no need to install manually
-# include(geogram)
-# target_link_libraries(${PROJECT_NAME} PRIVATE geogram)
 
 # Set executable test app
 add_executable(BFXViewer src/main.cpp)

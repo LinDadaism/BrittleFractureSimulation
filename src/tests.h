@@ -6,6 +6,7 @@
 
 #include "clipper.h"
 #include "utils.h"
+#include "meshprep.h"
 
 using namespace std;
 
@@ -81,7 +82,8 @@ MeshConvex testFunc2(int cellIndex,
     Cell cell = *pattern.getCells()[cellIndex];
     
     MeshConvex tester{ points, faces, tester_mesh };
-    auto result = clipConvexAgainstCell(tester, cell);
+    spConvex result(new MeshConvex);
+    clipConvexAgainstCell(tester, cell, result);
     
     // clipped convex post-processing for visualization
     calculateCentroid(*result, Eigen::Vector3d(0, 0, 0));
@@ -122,7 +124,8 @@ MeshConvex testFunc3(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
     // move it away from the center of mass of the whole mesh
     for (auto const& c : cells) {
         int previous_verts = final_vertices.size();
-        auto result = clipConvexAgainstCell(tester, *c);
+        spConvex result(new MeshConvex);
+        clipConvexAgainstCell(tester, *c, result);
         
         calculateCentroid(*result, tester.centroid);
         translateMesh(*result, result->centroid, 0.03);
@@ -160,7 +163,7 @@ void testWelding(std::vector<MeshConvex>& clippedMeshConvex,
     const VoroVerts& cellVertices,
     const VoroFaces& cellFaces,
     const VoroEdges& cellEdges,
-    std::vector<Pattern::sPCell>& gCells
+    std::vector<Pattern::spCell>& gCells
 ) {
     UnitCube cube;
 
@@ -186,7 +189,8 @@ void testWelding(std::vector<MeshConvex>& clippedMeshConvex,
     
     for (auto& c : pattern.getCells()) {
         for (auto& cube : allCubes) {
-            auto clipped = clipConvexAgainstCell(cube, *c);
+            spConvex clipped(new MeshConvex);
+            clipConvexAgainstCell(cube, *c, clipped);
             // only add to cell's list if intersected
             if (clipped->volume > 0) {
                 c->convexes.push_back(clipped);
@@ -273,7 +277,8 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
 
     for (auto& cell : pattern.getCells()) {
         for (auto& convex : clippedMeshConvex) {
-            auto clipped = clipConvexAgainstCell(convex, *cell);
+            spConvex clipped(new MeshConvex);
+            clipConvexAgainstCell(convex, *cell, clipped);
             // only add to cell's list if intersected
             if (clipped->volume > 0) {
                 cell->convexes.push_back(clipped);
@@ -285,4 +290,12 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
         auto com = Compound{ cell->convexes };
         gCompounds.push_back(com);
     }
+}
+
+////////////////////////////////////////////////////////////////////
+//TEST for Customize Readobj function
+////////////////////////////////////////////////////////////////////
+void testObj(const std::string& filePath, 
+    std::vector<spConvex>& convexes) {
+    convexes = readOBJByComponents(filePath);
 }

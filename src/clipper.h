@@ -45,14 +45,15 @@ typedef std::shared_ptr<MeshConvex>                          spConvex;
 
 // representing a convex piece of the fracture pattern
 struct Cell {
-    // could possibly add vertices and faces for future computations 
-    std::vector<spConvex> convexes; // Store convex index for intersected pieces 
+    int id; // useful to track back all vertices and faces in Pattern 
+    std::vector<spConvex> convexes; // Store mesh convexes for intersected pieces 
     Surface_mesh cellMesh;            // convenient for cgal operations  
 };
 
 struct Compound {
     std::vector<spConvex> convexes; // a compound is consisted of bunch of convex pieces 
 };
+typedef std::shared_ptr<Compound>                           spCompound;
 
 class Pattern 
 {
@@ -60,13 +61,15 @@ public:
     typedef std::vector<std::vector<Eigen::Vector3d>>  AllCellVertices;
     typedef std::vector<std::vector<std::vector<int>>> AllCellFaces;
     typedef std::vector<Eigen::MatrixXi>               AllCellEdges;
-    typedef std::shared_ptr<Cell>                      sPCell;
+    typedef std::shared_ptr<Cell>                      spCell;
 
     Pattern(AllCellVertices, AllCellFaces, AllCellEdges);
     ~Pattern() {};
 
     void createCellsfromVoro();
-    std::vector<sPCell> getCells();
+    std::vector<spCell> getCells();
+    AllCellVertices getVertices(); 
+    AllCellFaces getFaces(); 
 
 private:
     // original data outputed from Voronoi function of libigl
@@ -74,7 +77,11 @@ private:
     AllCellFaces o_cellFaces;
     AllCellEdges o_cellEdges;
     // data converted for mesh clipping and convex hull algorithm
-    std::vector<sPCell> cells;
+    std::vector<spCell> cells;
+    // possible data to be added 
+    // 1. the center of the pattern or the bounding box of Pattern 
+    // 2. transformation matrices to move the pattern around
+    // 3. scal
 
 };
 
@@ -87,7 +94,7 @@ void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d com);
 // move vertices in MeshConvex by scale in direction
 void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale);
 // use a single cell to mesh clip a single convex piece
-spConvex clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell);
+bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex& out_convex);
 // weld process for each cell in the pattern
 void weldforPattern(Pattern& pattern);
 // create a plane from 3 points
@@ -100,4 +107,6 @@ namespace std {
 }
 // island detection algorithm 
 std::vector<Compound> islandDetection(Compound& old_compound);
+// pipeline of fracture algorithm 
+std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern); 
 #endif // !MESH_CLIPPER
