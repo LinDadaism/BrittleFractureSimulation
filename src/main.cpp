@@ -718,7 +718,7 @@ int main(int argc, char *argv[])
 #if VOCAD
   // run CoACD executable to decompose surface mesh into convex hulls
   LPCSTR applicationName = "..\\coacd.exe";
-  char commandLine[] = "-i ..\\assets\\obj\\SnowFlake.obj -o ..\\assets\\results\\SnowFlake_out.obj -ro ..\\assets\\results\\SnowFlake_remesh.obj";
+  char commandLine[] = "-i ..\\assets\\obj\\bunny.obj -o ..\\assets\\results\\bunny_full.obj -ro ..\\assets\\results\\bunny_remesh.obj";
   if (executeCommand(applicationName, commandLine))
   {
       cout << "CoACD executed successfully!" << endl;

@@ -286,6 +286,36 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
     }
     return results;
 }
+// alternative island detection using intersection 
+// not correct implementation
+std::vector<Compound> islandDetection2(Compound& old_compound) {
+    std::unordered_set<int> cur_convs;
+    std::unordered_set<int> final_convs;
+    std::vector<Compound> results; 
+    int N = old_compound.convexes.size();
+    for (int l = 0; l < N; ++l) final_convs.insert(l);
+    for (int i = 0; i < N; ++i) {
+        if (cur_convs == final_convs) break;
+        std::unordered_set<int> curr; 
+        if (cur_convs.find(i) == cur_convs.end()) {
+            curr.insert(i);
+            for (int j = i+1; j < N; ++j) {
+                if (PMP::do_intersect(old_compound.convexes[i]->convexMesh, old_compound.convexes[j]->convexMesh,
+                    PMP::parameters::do_overlap_test_of_bounded_sides(true), PMP::parameters::do_overlap_test_of_bounded_sides(true))) {
+                    curr.insert(j);
+                }
+            }
+            std::vector<std::shared_ptr<MeshConvex>> new_convex;
+            for (const auto& index : curr) {
+                new_convex.push_back(old_compound.convexes[index]);
+                cur_convs.insert(index);
+            }
+            results.push_back(Compound{ new_convex });
+        }
+    }
+    return results;
+}
+
 
 // The core fracture algorihm pipeline  
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
@@ -303,8 +333,10 @@ std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
     std::vector<Compound> fractured;
     for (const auto& cell : pattern.getCells()) {
         if (cell->convexes.size() > 0) {
-            auto cellCompounds = islandDetection(Compound{ cell->convexes });
-            for (const auto& c : cellCompounds) fractured.push_back(c);
+            // DISABLE island detection for now 
+            /*auto cellCompounds = islandDetection2(Compound{ cell->convexes });
+            for (const auto& c : cellCompounds) fractured.push_back(c);*/
+            fractured.push_back(Compound{ cell->convexes });
         }
     }
     return fractured;
