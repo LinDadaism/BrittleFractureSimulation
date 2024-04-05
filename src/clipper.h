@@ -16,6 +16,7 @@
 #include <CGAL/Polygon_mesh_processing/repair.h>
 #include <CGAL/Polygon_mesh_processing/clip.h>
 #include <CGAL/centroid.h>
+#include <CGAL/Rigid_triangle_mesh_collision_detection.h>
 #include <vector>
 #include <algorithm>
 #include <unordered_set>
@@ -95,6 +96,8 @@ void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d com);
 void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale);
 // use a single cell to mesh clip a single convex piece
 bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex& out_convex);
+// Accelerate the clipping process using AABB tree 
+void clipAABB(Compound& compound, Pattern& pattern);
 // weld process for each cell in the pattern
 void weldforPattern(Pattern& pattern);
 // create a plane from 3 points

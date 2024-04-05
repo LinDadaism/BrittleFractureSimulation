@@ -177,6 +177,45 @@ bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex&
     return true;
 }
 
+void clipAABB(Compound& compound, Pattern& pattern) {
+    CGAL::Rigid_triangle_mesh_collision_detection<Surface_mesh> tree; 
+    int cell_num = pattern.getCells().size();
+    int convex_num = compound.convexes.size();
+    // put all surface meshes into AABB tree 
+    for (const auto& cell : pattern.getCells()) {
+        // assume all meshes 1 connected pieces
+        tree.add_mesh(cell->cellMesh, PMP::parameters::apply_per_connected_component(false));
+    }
+    for (const auto& convex : compound.convexes) {
+        tree.add_mesh(convex->convexMesh, PMP::parameters::apply_per_connected_component(false));
+    }
+    // iterate each cell and find all intersections 
+    for (int i = 0; i < cell_num; ++i) {
+        std::vector<std::pair<size_t, bool>> intersects = tree.get_all_intersections_and_inclusions(i);
+        for (const auto& inter : intersects) {
+            // for all intersections that is between a cell and a convex
+            if (inter.first >= cell_num) {
+                MeshConvex convex_copy = *compound.convexes[inter.first - cell_num];
+                Cell       cell_copy = *pattern.getCells()[i];
+                Surface_mesh convexm = convex_copy.convexMesh;
+                Surface_mesh cellm = cell_copy.cellMesh;
+                PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
+                convexm.collect_garbage();
+                double volume = PMP::volume(convexm);
+                std::vector<Eigen::Vector3d> vertices;
+                std::vector<std::vector<int>> faces;
+                // double check that they actually intersected 
+                if (volume > 0) {
+                    buildVFfromSM(convexm, vertices, faces);
+                }
+                spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
+                pattern.getCells()[i]->convexes.push_back(result);
+            }
+        }
+    }
+}
+
+
 // make sure to run this function after clipping such that 
 // cell.convexes contain clipped convex pieces 
 void weldforPattern(Pattern& pattern) {
@@ -321,12 +360,13 @@ std::vector<Compound> islandDetection2(Compound& old_compound) {
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
     //TODO: alignmnet First Step: Alignment
     //TODO: acceleration structure!!!!! Second Step: Intersection 
-    for (auto& cell : pattern.getCells()) {
+    /*for (auto& cell : pattern.getCells()) {
         for (auto& convex : compound.convexes) {
             spConvex clipped(new MeshConvex);
             if (clipConvexAgainstCell(*convex, *cell, clipped)) cell->convexes.push_back(clipped);
         }
-    }
+    }*/
+    clipAABB(compound, pattern);
     //Third Step: Welding
     weldforPattern(pattern);
     //Fourth Step: Compound Formation + Island Detection
