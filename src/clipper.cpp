@@ -288,11 +288,11 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
 }
 
 // The core fracture algorihm pipeline  
-std::vector<Compound> fracturePipeline(Compound& compound, Pattern pattern) {
+std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
     //TODO: alignmnet First Step: Alignment
     //TODO: acceleration structure!!!!! Second Step: Intersection 
     for (auto& cell : pattern.getCells()) {
-        for (const auto& convex : compound.convexes) {
+        for (auto& convex : compound.convexes) {
             spConvex clipped(new MeshConvex);
             if (clipConvexAgainstCell(*convex, *cell, clipped)) cell->convexes.push_back(clipped);
         }

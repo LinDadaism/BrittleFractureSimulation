@@ -60,8 +60,8 @@ char gCurrKey = '0';
 Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
 //int gTestMode = 0; // 0-tet visualization, 1-clip, 2-weld, 3-island
 // Expose an enumeration type
-enum MeshOp { Tet = 0, Clip, Weld, Island, OBJ };
-static MeshOp gTestMode = Tet;
+enum MeshOp { Default = 0, Tet, Clip, Weld, Island, OBJ, Pipe};
+static MeshOp gTestMode = Default;
 
 // Mesh operations
 std::vector<MeshConvex> gClippedMeshConvex;     // Global var for testing mesh clipping 
@@ -71,7 +71,8 @@ std::vector<Compound> gCurrCompounds;           // Global var for testing island
 int  gCurrConvex = 0;                           // Global var for testing island detection 
 // ReadObj testing 
 std::vector<spConvex> ginitialConvexes;        // Global var for testing readOBJ function
-std::string gOBJPath = "..\\assets\\results\\SnowFlake_10.obj";
+std::string gOBJPath = "..\\assets\\obj\\cube.obj";
+// Pipeline testing
 
 
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
@@ -574,8 +575,49 @@ bool key_down_obj(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modi
     return false;
 }
 
+// Helper func, called every time a keyboard button is pressed
+// Input key='0~9': By default draws the first convex within a cell's compound
+//      Input key = 'n/N': draws the other island(s) within the cell, if exists
+bool key_down_pipe(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
+    using namespace Eigen;
+
+    gCurrKey = key; // keep a global record
+    if (key >= '0' && key <= '9')
+    {
+        int cellIndex = int(key - '0');
+        std::vector<Eigen::Vector3d> final_vertices;
+        std::vector<std::vector<int>> final_faces;
+        auto com = gCompounds[cellIndex];
+        // draw every convexes in current compound
+        for (auto const& c : com.convexes) {
+            int previous_verts = final_vertices.size();
+            int previous_faces = final_faces.size();
+            final_vertices.insert(final_vertices.end(), c->vertices.begin(), c->vertices.end());
+            final_faces.insert(final_faces.end(), c->faces.begin(), c->faces.end());
+            for (size_t i = previous_faces; i < final_faces.size(); i++) {
+                final_faces[i][0] += previous_verts;
+                final_faces[i][1] += previous_verts;
+                final_faces[i][2] += previous_verts;
+            }
+
+            auto V_temp = convertToMatrixXd(final_vertices);
+            auto F_temp = convertToMatrixXi(final_faces);
+            viewer.data().clear();
+            viewer.data().set_mesh(V_temp, F_temp);
+            viewer.data().set_face_based(true);
+        }
+    }
+        drawDebugVisuals(viewer);
+
+        return false;
+}
+
 void switchTestMode(igl::opengl::glfw::Viewer& viewer)
 {
+    if (gTestMode == Default)
+    {
+        drawDebugVisuals(viewer);
+    }
     if (gTestMode == Tet)
     {
         viewer.callback_key_down = &key_down_tet;
@@ -612,6 +654,14 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
         viewer.callback_key_down = &key_down_obj;
         key_down_obj(viewer, '0', 0);
     }
+    if (gTestMode == Pipe)
+    {
+        Pattern pattern(gCellVertices, gCellFaces, gCellEdges);
+        pattern.createCellsfromVoro();
+        testPipeline(gOBJPath, pattern, gCompounds);
+        viewer.callback_key_down = &key_down_pipe;
+        key_down_pipe(viewer, '0', 0);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -619,7 +669,7 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = "../assets/obj/SnowFlake.obj";/*"../assets/obj/cube.obj";*/ /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
+    string filePath = /*"../assets/obj/bunny.obj";*/"../assets/obj/cube.obj"; /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      
@@ -681,7 +731,7 @@ int main(int argc, char *argv[])
           // Add new group
           if (ImGui::CollapsingHeader("Fracture Configuration Options:", ImGuiTreeNodeFlags_DefaultOpen))
           {
-              if (ImGui::Combo("Test Mesh Operations", (int*)(&gTestMode), "Tet\0Clip\0Weld\0Island\0OBJ\0\0"))
+              if (ImGui::Combo("Test Mesh Operations", (int*)(&gTestMode), "Default\0Tet\0Clip\0Weld\0Island\0OBJ\0Pipe\0\0"))
               {
                   switchTestMode(viewer);
               }
