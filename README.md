@@ -13,8 +13,9 @@ BFX depends on external libraries:
     - opengl
     - glfw
     - tetgen
-    - cgal
 * [Voro++](https://math.lbl.gov/voro++/), a C++ library for carrying out three-dimensional computations of the Voronoi tessellation.
+* [CGAL](https://www.cgal.org/), a C++ library of computational geometry algorithms mainly for mesh clipping.
+* [CoACD](https://github.com/SarahWeiii/CoACD), an approximate convex decomposition algorithm that we use for mesh preparation before fracture.
 
 **We configure the project using cmake. Installation of `libigl` is handled automatically. We include source code of `voro++` in the project, thus building `voro++` also automatically handled by cmake.** 
 
@@ -25,10 +26,6 @@ Now let's build the Visual Studio project:
     * Windows: `cmake -B build -S . -G "Visual Studio 17 2022" -A x64` to generate the Visual Studio project. You may choose a different Visual Studio version.
 2. Open the generated `BFX.sln` project inside `/build` directory.
 3. Build and Run. Make sure you run the `BFXViewer` target by right-clicking it and selecting "Set as StartUp Project".
-4. **ATTENTION!** If you are using the `CGAL` module wrapper of `libigl`, you need to move the files in `/gmp` into the following build directories:
-
-    - Copy/paste the `/gmp-src` folder into `/build/_deps`
-    - Copy/paste the `/mpfr-src` folder into `/build/_deps`
 
 A GUI window should launch displaying a 3D cube along with some debugging visuals of the vornoi decomposition.
 

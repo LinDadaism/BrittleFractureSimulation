@@ -6,8 +6,7 @@
 #include <stdexcept>
 #include "clipper.h"
 
-namespace mesh_prep {
-	std::vector<spConvex> readOBJ(const std::string& filePath);
-}
+std::vector<spConvex> readOBJByComponents(const std::string& filePath);
+
 
 #endif
