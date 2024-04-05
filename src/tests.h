@@ -297,7 +297,7 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
 ////////////////////////////////////////////////////////////////////
 void testObj(const std::string& filePath, 
     std::vector<spConvex>& convexes) {
-    convexes = mesh_prep::readOBJ(filePath);
+    convexes = readOBJByComponents(filePath);
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -306,7 +306,7 @@ void testObj(const std::string& filePath,
 void testPipeline(const std::string& filePath,
     Pattern& pattern, 
     std::vector<Compound>& splitted) {
-    auto convexes = mesh_prep::readOBJ(filePath);
+    auto convexes = readOBJByComponents(filePath);
     Compound original{convexes};
     auto results = fracturePipeline(original, pattern);
     splitted = results; 

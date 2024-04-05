@@ -62,9 +62,6 @@ Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
 // Expose an enumeration type
 enum MeshOp { Default = 0, Tet, Clip, Weld, Island, OBJ, Pipe};
 static MeshOp gTestMode = Default;
-enum MeshOp { Tet = 0, Clip, Weld, Island, OBJ };
-static MeshOp gTestMode = Tet;
-double gExplodeAmt = 0.1f;
 double gExplodeAmt = 0.1f;
 
 // Mesh operations
@@ -76,7 +73,7 @@ int  gCurrConvex = 0;                           // Global var for testing island
 
 // ReadObj testing 
 std::vector<spConvex> ginitialConvexes;        // Global var for testing readOBJ function
-std::string gOBJPath = "..\\assets\\results\\SnowFlake_10.obj";
+std::string gOBJPath = "..\\assets\\results\\bunny_out.obj";
 // Pipeline testing
 
 
@@ -589,15 +586,15 @@ bool key_down_obj(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modi
     {
         int cellIndex = int(key - '0');
         //auto mesh = gClippedMeshConvex[cellIndex]; // for testing cube positioning
-        auto V_temp = convertToMatrixXd(gInitialConvexes[cellIndex]->vertices);
-        auto F_temp = convertToMatrixXi(gInitialConvexes[cellIndex]->faces);
+        auto V_temp = convertToMatrixXd(ginitialConvexes[cellIndex]->vertices);
+        auto F_temp = convertToMatrixXi(ginitialConvexes[cellIndex]->faces);
         viewer.data().clear();
         viewer.data().set_mesh(V_temp, F_temp);
         viewer.data().set_face_based(true);
     }
     if (key == '-')
     {
-        auto mesh = splitMeshesPt(gInitialConvexes, gExplodeAmt);
+        auto mesh = splitMeshesPt(ginitialConvexes, gExplodeAmt);
         auto V_temp = convertToMatrixXd(mesh.vertices);
         auto F_temp = convertToMatrixXi(mesh.faces);
         viewer.data().clear();
@@ -646,9 +643,6 @@ bool key_down_pipe(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
         return false;
 }
 
-    return false;
-}
-
 void switchTestMode(igl::opengl::glfw::Viewer& viewer)
 {
     if (gTestMode == Default)
@@ -692,7 +686,7 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
     }
     if (gTestMode == OBJ)
     {
-        testObj(gOBJPath, gInitialConvexes);
+        testObj(gOBJPath, ginitialConvexes);
         viewer.callback_key_down = &key_down_obj;
         key_down_obj(viewer, '0', 0);
     }
@@ -711,7 +705,7 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = /*"../assets/obj/bunny.obj";*/"../assets/obj/cube.obj"; /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
+    string filePath = "../assets/obj/bunny.obj";/*"../assets/obj/cube.obj";*/ /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      
@@ -797,7 +791,7 @@ int main(int argc, char *argv[])
                   }
                   if (gTestMode == OBJ)
                   {
-                      auto mesh = splitMeshesPt(gInitialConvexes, gExplodeAmt);
+                      auto mesh = splitMeshesPt(ginitialConvexes, gExplodeAmt);
                       auto V_temp = convertToMatrixXd(mesh.vertices);
                       auto F_temp = convertToMatrixXi(mesh.faces);
                       viewer.data().clear();
