@@ -163,7 +163,7 @@ void testWelding(std::vector<MeshConvex>& clippedMeshConvex,
     const VoroVerts& cellVertices,
     const VoroFaces& cellFaces,
     const VoroEdges& cellEdges,
-    std::vector<Pattern::sPCell>& gCells
+    std::vector<Pattern::spCell>& gCells
 ) {
     UnitCube cube;
 
@@ -297,5 +297,5 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
 ////////////////////////////////////////////////////////////////////
 void testObj(const std::string& filePath, 
     std::vector<spConvex>& convexes) {
-    convexes = mesh_prep::readOBJ(filePath);
+    convexes = readOBJByComponents(filePath);
 }

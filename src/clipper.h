@@ -61,13 +61,13 @@ public:
     typedef std::vector<std::vector<Eigen::Vector3d>>  AllCellVertices;
     typedef std::vector<std::vector<std::vector<int>>> AllCellFaces;
     typedef std::vector<Eigen::MatrixXi>               AllCellEdges;
-    typedef std::shared_ptr<Cell>                      sPCell;
+    typedef std::shared_ptr<Cell>                      spCell;
 
     Pattern(AllCellVertices, AllCellFaces, AllCellEdges);
     ~Pattern() {};
 
     void createCellsfromVoro();
-    std::vector<sPCell> getCells();
+    std::vector<spCell> getCells();
     AllCellVertices getVertices(); 
     AllCellFaces getFaces(); 
 
@@ -77,7 +77,7 @@ private:
     AllCellFaces o_cellFaces;
     AllCellEdges o_cellEdges;
     // data converted for mesh clipping and convex hull algorithm
-    std::vector<sPCell> cells;
+    std::vector<spCell> cells;
     // possible data to be added 
     // 1. the center of the pattern or the bounding box of Pattern 
     // 2. transformation matrices to move the pattern around

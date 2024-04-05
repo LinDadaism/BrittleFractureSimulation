@@ -1,6 +1,6 @@
 #include "meshprep.h"
 
-std::vector<spConvex> mesh_prep::readOBJ(const std::string& filePath) {
+std::vector<spConvex> readOBJByComponents(const std::string& filePath) {
     std::ifstream file(filePath);
     std::vector<spConvex> meshes;
     std::string line;
@@ -19,10 +19,17 @@ std::vector<spConvex> mesh_prep::readOBJ(const std::string& filePath) {
         if (type == "o" || type == "g") {
             // Start a new mesh on encountering a new object/group name
             if (vertices.size() > 0) {
-                spConvex cur(new MeshConvex{ vertices, faces });
+                Surface_mesh sm;
+                buildSMfromVF(vertices, faces, sm);
+                spConvex cur(new MeshConvex{ vertices, faces, sm});
+                
+                // Update centroid for the current mesh
+                calculateCentroid(*cur, Eigen::Vector3d(0, 0, 0));
+
                 meshes.push_back(cur);
                 currentVertices += vertices.size();
-                vertices.clear(); 
+                
+                vertices.clear();
                 faces.clear();
             }
         }
@@ -30,7 +37,6 @@ std::vector<spConvex> mesh_prep::readOBJ(const std::string& filePath) {
             double x, y, z;
             iss >> x >> y >> z;
             vertices.push_back(Eigen::Vector3d(x, y, z));
-            // Update centroid for the current mesh
         }
         else if (type == "f") {
             int a, b, c;
@@ -40,7 +46,11 @@ std::vector<spConvex> mesh_prep::readOBJ(const std::string& filePath) {
         }
     }
     if (vertices.size() > 0) {
-        spConvex cur(new MeshConvex{ vertices, faces });
+        Surface_mesh sm;
+        buildSMfromVF(vertices, faces, sm);
+        spConvex cur(new MeshConvex{ vertices, faces, sm });
+        // Update centroid for the current mesh
+        calculateCentroid(*cur, Eigen::Vector3d(0, 0, 0));
         meshes.push_back(cur);
     }
     return meshes;

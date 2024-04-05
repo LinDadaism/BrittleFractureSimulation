@@ -4,7 +4,7 @@
 Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
 {}
 
-std::vector<Pattern::sPCell> Pattern::getCells() {
+std::vector<Pattern::spCell> Pattern::getCells() {
     return cells;
 }
 
@@ -22,7 +22,7 @@ void Pattern::createCellsfromVoro() {
         auto curCell = o_cellFaces[i];
         Surface_mesh sm; 
         buildSMfromVF(o_cellVertices[i], o_cellFaces[i], sm);
-        sPCell cellptr(new Cell{i, std::vector<spConvex>{}, sm });
+        spCell cellptr(new Cell{i, std::vector<spConvex>{}, sm });
         cells.push_back(cellptr);
     }
 }
