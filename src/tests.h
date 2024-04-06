@@ -287,8 +287,9 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
     }
     // compound formation 
     for (const auto& cell : pattern.getCells()) {
-        auto com = Compound{ cell->convexes };
-        gCompounds.push_back(com);
+        if (cell->convexes.size() > 0) {
+            gCompounds.push_back(Compound{ cell->convexes });
+        }
     }
 }
 
@@ -296,8 +297,8 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
 //TEST for Customize Readobj function
 ////////////////////////////////////////////////////////////////////
 void testObj(const std::string& filePath, 
-    std::vector<spConvex>& convexes) {
-    convexes = readOBJByComponents(filePath);
+    Compound& compound) {
+    compound = readOBJByComponents(filePath);
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -308,6 +309,5 @@ void testPipeline(const std::string& filePath,
     std::vector<Compound>& splitted) {
     auto convexes = readOBJByComponents(filePath);
     Compound original{convexes};
-    auto results = fracturePipeline(original, pattern);
-    splitted = results; 
+    splitted = fracturePipeline(original, pattern);
 }

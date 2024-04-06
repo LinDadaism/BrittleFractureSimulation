@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include "clipper.h"
 
-std::vector<spConvex> readOBJByComponents(const std::string& filePath);
+Compound readOBJByComponents(const std::string& filePath);
 
 
 #endif

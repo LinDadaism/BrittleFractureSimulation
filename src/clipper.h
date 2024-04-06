@@ -120,8 +120,6 @@ namespace std {
 }
 // island detection algorithm 
 std::vector<Compound> islandDetection(Compound& old_compound);
-// island detection algorithm 
-std::vector<Compound> islandDetection2(Compound& old_compound);
 // pipeline of fracture algorithm 
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern); 
 #endif // !MESH_CLIPPER
