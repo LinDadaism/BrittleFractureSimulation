@@ -311,108 +311,46 @@ Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vecto
     return Eigen::Vector4d(A, B, C, D);
 }
 
-// A custom intersection function used in island detection 
-template<typename T>
-std::unordered_set<T> intersection(const std::unordered_set<T>& set1, const std::unordered_set<T>& set2) {
-    std::unordered_set<T> result;
-
-    // Iterate through the first set and check if each element is in the second set
-    for (const T& element : set1) {
-        if (set2.find(element) != set2.end()) {
-            // If the element is found in the second set, add it to the result
-            result.insert(element);
-        }
-    }
-
-    return result;
-}
-
-std::vector<Compound> islandDetection(Compound& old_compound) {
-    // store mapping relation between a face plane and the group index
-    std::unordered_map<Eigen::Vector4d, std::shared_ptr<MeshConvex>> linker;
-    std::vector<Compound> results; 
-    std::vector<std::shared_ptr<MeshConvex>> convs = old_compound.convexes;
-    // No need for island detection if there's only 1 piece
-    if (convs.size() < 2) return std::vector<Compound>{old_compound};
-    // clear previous groupings 
-    for (auto& c : old_compound.convexes) {
-        c->group.clear();
-    }
-    // iterate over every face of every convex piece
-    for (int i = 0; i < convs.size(); ++i) {
-        auto convex = convs[i];
-        auto vertices = convex->vertices;
-        auto cur = std::unordered_set<int>{ i };
-        std::vector<Eigen::Vector4d> planes; 
-        // first iteration update the set of convexes
-        for (const auto& face : convex->faces) {
-            auto p1 = vertices[face[0]];
-            auto p2 = vertices[face[1]];
-            auto p3 = vertices[face[2]];
-            auto plane = createPlane(p1, p2, p3);
-            planes.push_back(plane);
-            if (linker.find(-plane) != linker.end()) {
-                auto prev = linker[-plane]->group;
-                cur.insert(prev.begin(), prev.end());
-            }
-        }
-        // second iteration update to group variable of convexes
-        for (const auto& p : planes) {
-            linker[p] = convs[i];
-            linker[p]->group = cur;
-            if (linker.find(-p) != linker.end()) {
-                std::vector<int> temp_group; 
-                for (const auto& prev_group : linker[-p]->group) convs[prev_group]->group = cur;
-                linker[-p]->group = cur;
-            }
-        }
-    }
-    // use convs to group islands together
-    std::unordered_set<int> cur_convs;
-    std::unordered_set<int> final_convs;
-    for (int l = 0; l < convs.size(); ++l) final_convs.insert(l);
-    for (const auto& c : convs) {
-        if (cur_convs == final_convs) break;
-        auto g = c->group;
-        std::unordered_set<int> inter = intersection(g, cur_convs);
-        //std::set_intersection(cur_convs.begin(), cur_convs.end(), g.begin(), g.end(),
-        //    std::inserter(inter, inter.begin()));
-        if (inter.size() == 0) {
-            cur_convs.insert(g.begin(), g.end());
-            std::vector<std::shared_ptr<MeshConvex>> new_convex;
-            for (const auto& index : g) new_convex.push_back(convs[index]);
-            results.push_back(Compound{ new_convex });
-        }
-    }
-    return results;
-}
 // alternative island detection using intersection 
 // not correct implementation
-std::vector<Compound> islandDetection2(Compound& old_compound) {
+std::vector<Compound> islandDetection(Compound& old_compound) {
+    int N = old_compound.convexes.size();
+    ABtree tree;
+    for (auto& com : old_compound.convexes) tree.add_mesh(com->convexMesh, PMP::parameters::apply_per_connected_component(false));
+    std::vector<Compound> results;
     std::unordered_set<int> cur_convs;
     std::unordered_set<int> final_convs;
-    std::vector<Compound> results; 
-    int N = old_compound.convexes.size();
     for (int l = 0; l < N; ++l) final_convs.insert(l);
     for (int i = 0; i < N; ++i) {
         if (cur_convs == final_convs) break;
-        std::unordered_set<int> curr; 
-        if (cur_convs.find(i) == cur_convs.end()) {
-            curr.insert(i);
-            for (int j = i+1; j < N; ++j) {
-                if (PMP::do_intersect(old_compound.convexes[i]->convexMesh, old_compound.convexes[j]->convexMesh,
-                    PMP::parameters::do_overlap_test_of_bounded_sides(true), PMP::parameters::do_overlap_test_of_bounded_sides(true))) {
-                    curr.insert(j);
+        if (cur_convs.find(i) != cur_convs.end()) continue;
+        std::unordered_set<int> searched{};
+        std::queue<int> q;
+        searched.insert(i);
+        q.push(i);
+        while (!q.empty()) {
+            int current = q.front();
+            q.pop();
+            std::unordered_set<int> intersected;
+            for (auto& intersection : tree.get_all_intersections_and_inclusions(current)) {
+                intersected.insert(intersection.first);
+            }
+            for (auto& inter : intersected) {
+                // not found
+                if (searched.find(inter) == searched.end()) {
+                    searched.insert(inter);
+                    q.push(inter);
                 }
             }
-            std::vector<spConvex> new_convex;
-            for (const auto& index : curr) {
-                new_convex.push_back(old_compound.convexes[index]);
-                cur_convs.insert(index);
-            }
-            results.push_back(Compound{ new_convex });
         }
+        std::vector<std::shared_ptr<MeshConvex>> new_convexes;
+        for (auto& s : searched) {
+            new_convexes.push_back(old_compound.convexes[s]);
+            cur_convs.insert(s);
+        }
+        results.push_back(Compound{ new_convexes });
     }
+    
     return results;
 }
 
@@ -435,9 +373,9 @@ std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
     for (const auto& cell : pattern.getCells()) {
         if (cell->convexes.size() > 0) {
             // DISABLE island detection for now 
-            /*auto cellCompounds = islandDetection2(Compound{ cell->convexes });
-            for (const auto& c : cellCompounds) fractured.push_back(c);*/
-            fractured.push_back(Compound{ cell->convexes });
+            auto cellCompounds = islandDetection(Compound{ cell->convexes });
+            for (const auto& c : cellCompounds) fractured.push_back(c);
+            //fractured.push_back(Compound{ cell->convexes });
         }
     }
     return fractured;

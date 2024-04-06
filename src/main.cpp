@@ -47,7 +47,7 @@ Eigen::MatrixXi TT; // #TT by 4 matrix for tet face indices
 Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `boundary_facets` is called on TT)
 
 // Voronoi diagram
-int gNumPoints = 30;
+int gNumPoints = 10;
 vector<Eigen::Vector3d> gPoints;
 
 // TODO: encapsulate class Compound
@@ -535,6 +535,10 @@ bool key_down_island(igl::opengl::glfw::Viewer& viewer, unsigned char key, int m
     if (key >= '0' && key <= '9')
     {
         int cellIndex = int(gCurrKey - '0');
+        if (cellIndex > gCompounds.size()) {
+            std::cout << "There are " << gCompounds.size() << " compounds in total." << std::endl;
+            return false;
+        }
         Compound temp = gCompounds[cellIndex];
         gCurrCompounds = islandDetection(temp);
         gCurrConvex = 0;
@@ -616,9 +620,42 @@ bool key_down_pipe(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
     if (key >= '0' && key <= '9')
     {
         int cellIndex = int(key - '0');
+        gCurrConvex = cellIndex; 
+        if (gCurrConvex >= gCompounds.size()) {
+            std::cout << "Error: exceed total compound number!" << std::endl;
+            return false;
+        }
         std::vector<Eigen::Vector3d> final_vertices;
         std::vector<std::vector<int>> final_faces;
-        auto com = gCompounds[cellIndex];
+        auto com = gCompounds[gCurrConvex];
+        // draw every convexes in current compound
+        for (auto const& c : com.convexes) {
+            int previous_verts = final_vertices.size();
+            int previous_faces = final_faces.size();
+            final_vertices.insert(final_vertices.end(), c->vertices.begin(), c->vertices.end());
+            final_faces.insert(final_faces.end(), c->faces.begin(), c->faces.end());
+            for (size_t i = previous_faces; i < final_faces.size(); i++) {
+                final_faces[i][0] += previous_verts;
+                final_faces[i][1] += previous_verts;
+                final_faces[i][2] += previous_verts;
+            }
+
+            auto V_temp = convertToMatrixXd(final_vertices);
+            auto F_temp = convertToMatrixXi(final_faces);
+            viewer.data().clear();
+            viewer.data().set_mesh(V_temp, F_temp);
+            viewer.data().set_face_based(true);
+        }
+    }
+    if ((key == 'n' || 'N')) {
+        gCurrConvex = gCurrConvex + 1;
+        if (gCurrConvex >= gCompounds.size()) {
+            std::cout << "Error: exceed total compound number!" << std::endl;
+            return false;
+        }
+        std::vector<Eigen::Vector3d> final_vertices;
+        std::vector<std::vector<int>> final_faces;
+        auto com = gCompounds[gCurrConvex];
         // draw every convexes in current compound
         for (auto const& c : com.convexes) {
             int previous_verts = final_vertices.size();
@@ -705,7 +742,7 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = "../assets/obj/bunny.obj";/*"../assets/obj/cube.obj";*/ /*"../assets/bunny.off";*/ // "../assets/Armadillo.ply"
+    string filePath = "../assets/obj/bunny.obj";/*"../assets/obj/cube.obj";*/ /*".. / assets / bunny.off";*/ // ".. / assets / Armadillo.ply"
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      
