@@ -16,7 +16,14 @@
 #include <CGAL/Polygon_mesh_processing/repair.h>
 #include <CGAL/Polygon_mesh_processing/clip.h>
 #include <CGAL/centroid.h>
+#include <CGAL/Rigid_triangle_mesh_collision_detection.h>
+#include <CGAL/Convex_hull_3/dual/halfspace_intersection_3.h>
+#include <CGAL/Convex_hull_3/dual/halfspace_intersection_with_constructions_3.h>
 #include <vector>
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
 #include <algorithm>
 #include <unordered_set>
 #include <unordered_map>
@@ -29,7 +36,9 @@ typedef K::Plane_3                                           Plane_3;
 typedef CGAL::Surface_mesh<Point_3>                          Surface_mesh;
 typedef Surface_mesh::Vertex_index                           Vertex_descriptor;
 typedef Surface_mesh::Face_index                             Face_descriptor;
+typedef CGAL::Rigid_triangle_mesh_collision_detection<Surface_mesh> ABtree;
 namespace PMP = CGAL::Polygon_mesh_processing;
+extern std::mutex patternMutex; // global mutex for simplicity
 
 // representing a convex piece of the mesh, we only need vertices because the piece is convex
 // and we can build the convex hull easily 
@@ -47,6 +56,8 @@ typedef std::shared_ptr<MeshConvex>                          spConvex;
 struct Cell {
     int id; // useful to track back all vertices and faces in Pattern 
     std::vector<spConvex> convexes; // Store mesh convexes for intersected pieces 
+    std::vector<Eigen::Vector3d> vertices;
+    std::vector<std::vector<int>> faces;
     Surface_mesh cellMesh;            // convenient for cgal operations  
 };
 
@@ -95,6 +106,8 @@ void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d com);
 void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale);
 // use a single cell to mesh clip a single convex piece
 bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex& out_convex);
+// Accelerate the clipping process using AABB tree 
+void clipAABB(Compound& compound, Pattern& pattern);
 // weld process for each cell in the pattern
 void weldforPattern(Pattern& pattern);
 // create a plane from 3 points
@@ -107,6 +120,8 @@ namespace std {
 }
 // island detection algorithm 
 std::vector<Compound> islandDetection(Compound& old_compound);
+// island detection algorithm 
+std::vector<Compound> islandDetection2(Compound& old_compound);
 // pipeline of fracture algorithm 
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern); 
 #endif // !MESH_CLIPPER

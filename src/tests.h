@@ -299,3 +299,15 @@ void testObj(const std::string& filePath,
     std::vector<spConvex>& convexes) {
     convexes = readOBJByComponents(filePath);
 }
+
+////////////////////////////////////////////////////////////////////
+//TEST for Pipeline 
+////////////////////////////////////////////////////////////////////
+void testPipeline(const std::string& filePath,
+    Pattern& pattern, 
+    std::vector<Compound>& splitted) {
+    auto convexes = readOBJByComponents(filePath);
+    Compound original{convexes};
+    auto results = fracturePipeline(original, pattern);
+    splitted = results; 
+}
