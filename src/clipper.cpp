@@ -1,6 +1,8 @@
 #include "clipper.h"
+#include <iostream>
+#include <chrono>
 
-
+std::mutex patternMutex;
 Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
 {}
 
@@ -22,7 +24,7 @@ void Pattern::createCellsfromVoro() {
         auto curCell = o_cellFaces[i];
         Surface_mesh sm; 
         buildSMfromVF(o_cellVertices[i], o_cellFaces[i], sm);
-        spCell cellptr(new Cell{i, std::vector<spConvex>{}, sm });
+        spCell cellptr(new Cell{i, std::vector<spConvex>{}, o_cellVertices[i], o_cellFaces[i], sm });
         cells.push_back(cellptr);
     }
 }
@@ -177,6 +179,57 @@ bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex&
     return true;
 }
 
+//void workerClipAABB(int cellID, int cell_num, Compound& compound, Pattern& pattern) {
+//    std::vector<std::pair<size_t, bool>> intersects = compound.tree.get_all_intersections_and_inclusions(cellID);
+//    for (const auto& inter : intersects) {
+//        // for all intersections that is between a cell and a convex
+//        if (inter.first >= cell_num) {
+//            MeshConvex convex_copy = *compound.convexes[inter.first - cell_num];
+//            Cell       cell_copy = *pattern.getCells()[cellID];
+//            Surface_mesh convexm = convex_copy.convexMesh;
+//            Surface_mesh cellm = cell_copy.cellMesh;
+//            // clipping between mesh and mesh 
+//            PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
+//            convexm.collect_garbage();
+//            double volume = PMP::volume(convexm);
+//            std::vector<Eigen::Vector3d> vertices;
+//            std::vector<std::vector<int>> faces;
+//            // double check that they actually intersected 
+//            if (volume > 0) {
+//                buildVFfromSM(convexm, vertices, faces);
+//            }
+//            spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
+//            //std::lock_guard<std::mutex> lock(patternMutex);
+//            pattern.getCells()[cellID]->convexes.push_back(result);
+//        }
+//    }
+//}
+
+void workerClipAABB(int cellID, int cell_num, Compound& compound, Pattern& pattern, std::vector<std::pair<size_t, bool>> intersects) {
+    for (const auto& inter : intersects) {
+        // for all intersections that is between a cell and a convex
+        if (inter.first >= cell_num) {
+            MeshConvex convex_copy = *compound.convexes[inter.first - cell_num];
+            Cell       cell_copy = *pattern.getCells()[cellID];
+            Surface_mesh convexm = convex_copy.convexMesh;
+            Surface_mesh cellm = cell_copy.cellMesh;
+            // clipping between mesh and mesh 
+            PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
+            convexm.collect_garbage();
+            double volume = PMP::volume(convexm);
+            std::vector<Eigen::Vector3d> vertices;
+            std::vector<std::vector<int>> faces;
+            // double check that they actually intersected 
+            if (volume > 0) {
+                buildVFfromSM(convexm, vertices, faces);
+            }
+            spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
+            std::lock_guard<std::mutex> lock(patternMutex);
+            pattern.getCells()[cellID]->convexes.push_back(result);
+        }
+    }
+}
+
 void clipAABB(Compound& compound, Pattern& pattern) {
     CGAL::Rigid_triangle_mesh_collision_detection<Surface_mesh> tree; 
     int cell_num = pattern.getCells().size();
@@ -184,35 +237,79 @@ void clipAABB(Compound& compound, Pattern& pattern) {
     // put all surface meshes into AABB tree 
     for (const auto& cell : pattern.getCells()) {
         // assume all meshes 1 connected pieces
+        //tree.add_mesh(cell->cellMesh, PMP::parameters::apply_per_connected_component(false));
         tree.add_mesh(cell->cellMesh, PMP::parameters::apply_per_connected_component(false));
+
     }
     for (const auto& convex : compound.convexes) {
+        //tree.add_mesh(convex->convexMesh, PMP::parameters::apply_per_connected_component(false));
         tree.add_mesh(convex->convexMesh, PMP::parameters::apply_per_connected_component(false));
+
     }
     // iterate each cell and find all intersections 
+    int counter = 0; 
+    int includer = 0; 
+    std::chrono::milliseconds total_time; 
+    //std::vector<std::thread> threads;
+    //for (int i = 0; i < cell_num; ++i) {
+    //    std::thread myThread(workerClipAABB, i, cell_num, compound, pattern);
+    //    threads.push_back(std::move(myThread));
+    //}
+    //for (auto& thread : threads) {
+    //    thread.join();
+    //}
+    std::vector<std::vector<std::pair<size_t, bool>>> intersection_list;
     for (int i = 0; i < cell_num; ++i) {
         std::vector<std::pair<size_t, bool>> intersects = tree.get_all_intersections_and_inclusions(i);
-        for (const auto& inter : intersects) {
-            // for all intersections that is between a cell and a convex
-            if (inter.first >= cell_num) {
-                MeshConvex convex_copy = *compound.convexes[inter.first - cell_num];
-                Cell       cell_copy = *pattern.getCells()[i];
-                Surface_mesh convexm = convex_copy.convexMesh;
-                Surface_mesh cellm = cell_copy.cellMesh;
-                PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
-                convexm.collect_garbage();
-                double volume = PMP::volume(convexm);
-                std::vector<Eigen::Vector3d> vertices;
-                std::vector<std::vector<int>> faces;
-                // double check that they actually intersected 
-                if (volume > 0) {
-                    buildVFfromSM(convexm, vertices, faces);
-                }
-                spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
-                pattern.getCells()[i]->convexes.push_back(result);
-            }
-        }
+        intersection_list.push_back(intersects);
     }
+    std::vector<std::thread> threads;
+    for (int i = 0; i < cell_num; ++i) {
+        std::thread myThread(workerClipAABB, i, cell_num, compound, pattern, intersection_list[i]);
+        threads.push_back(std::move(myThread));
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    //for (int i = 0; i < cell_num; ++i) {
+    //    std::vector<std::pair<size_t, bool>> intersects = tree.get_all_intersections_and_inclusions(i);
+    //    for (const auto& inter : intersects) {
+    //        // for all intersections that is between a cell and a convex
+    //        if (inter.first >= cell_num) {
+    //            counter++;
+    //            MeshConvex convex_copy = *compound.convexes[inter.first - cell_num];
+    //            Cell       cell_copy = *pattern.getCells()[i];
+    //            Surface_mesh convexm = convex_copy.convexMesh;
+    //            Surface_mesh cellm = cell_copy.cellMesh;
+    //            // clipping between mesh and mesh 
+    //            auto start = std::chrono::high_resolution_clock::now();
+    //            PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
+    //            auto stop = std::chrono::high_resolution_clock::now();
+    //            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    //            total_time += duration;
+    //            convexm.collect_garbage();
+    //            double volume = PMP::volume(convexm);
+    //            std::vector<Eigen::Vector3d> vertices;
+    //            std::vector<std::vector<int>> faces;
+    //            // double check that they actually intersected 
+    //            if (volume > 0) {
+    //                buildVFfromSM(convexm, vertices, faces);
+    //            }
+    //            spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
+    //            pattern.getCells()[i]->convexes.push_back(result);
+    //        }
+    //        else if (inter.first >= cell_num && inter.second) {
+    //            includer++;
+    //            pattern.getCells()[i]->convexes.push_back(compound.convexes[inter.first - cell_num]);
+    //        }
+    //    }
+    //}
+    // DEBUG
+    std::cout << "Clipping times after AABB tree: " << counter << std::endl;
+    std::cout << "Including times after AABB tree: " << includer << std::endl;
+    std::cout << "Total clipping time after AABB tree: " << total_time.count() << std::endl;
+
 }
 
 
