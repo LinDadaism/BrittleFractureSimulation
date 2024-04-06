@@ -3,8 +3,10 @@
 #include <chrono>
 
 #define MULTITHREAD 
-#define CGAL_HAS_THREADS
-#define BOOST_HAS_THREADS
+#ifdef MULTITHREAD
+    #define CGAL_HAS_THREADS
+    #define BOOST_HAS_THREADS
+#endif
 std::mutex patternMutex;
 Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
 {}
@@ -210,20 +212,16 @@ void workerClipAABB(int cellID, int cell_num, Compound& compound, Pattern& patte
 #endif
 
 void clipAABB(Compound& compound, Pattern& pattern) {
-    CGAL::Rigid_triangle_mesh_collision_detection<Surface_mesh> tree; 
+    ABtree tree;
     int cell_num = pattern.getCells().size();
     int convex_num = compound.convexes.size();
     // put all surface meshes into AABB tree 
     for (const auto& cell : pattern.getCells()) {
         // assume all meshes 1 connected pieces
-        //tree.add_mesh(cell->cellMesh, PMP::parameters::apply_per_connected_component(false));
         tree.add_mesh(cell->cellMesh, PMP::parameters::apply_per_connected_component(false));
-
     }
     for (const auto& convex : compound.convexes) {
-        //tree.add_mesh(convex->convexMesh, PMP::parameters::apply_per_connected_component(false));
         tree.add_mesh(convex->convexMesh, PMP::parameters::apply_per_connected_component(false));
-
     }
     std::vector<std::vector<std::pair<size_t, bool>>> intersection_list;
     for (int i = 0; i < cell_num; ++i) {
@@ -407,7 +405,7 @@ std::vector<Compound> islandDetection2(Compound& old_compound) {
                     curr.insert(j);
                 }
             }
-            std::vector<std::shared_ptr<MeshConvex>> new_convex;
+            std::vector<spConvex> new_convex;
             for (const auto& index : curr) {
                 new_convex.push_back(old_compound.convexes[index]);
                 cur_convs.insert(index);
