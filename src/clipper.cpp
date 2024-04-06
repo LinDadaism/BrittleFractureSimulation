@@ -310,8 +310,7 @@ Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vecto
     return Eigen::Vector4d(A, B, C, D);
 }
 
-// alternative island detection using intersection 
-// not correct implementation
+// island detection using intersection 
 std::vector<Compound> islandDetection(Compound& old_compound) {
     int N = old_compound.convexes.size();
     ABtree tree;
@@ -357,13 +356,8 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
 // The core fracture algorihm pipeline  
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
     //TODO: alignmnet First Step: Alignment
-    //TODO: acceleration structure!!!!! Second Step: Intersection 
-    /*for (auto& cell : pattern.getCells()) {
-        for (auto& convex : compound.convexes) {
-            spConvex clipped(new MeshConvex);
-            if (clipConvexAgainstCell(*convex, *cell, clipped)) cell->convexes.push_back(clipped);
-        }
-    }*/
+    
+    //Second Step: Intersection 
     clipAABB(compound, pattern);
     //Third Step: Welding
     weldforPattern(pattern);
@@ -371,7 +365,6 @@ std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
     std::vector<Compound> fractured;
     for (const auto& cell : pattern.getCells()) {
         if (cell->convexes.size() > 0) {
-            // DISABLE island detection for now 
             auto cellCompounds = islandDetection(Compound{ cell->convexes });
             for (const auto& c : cellCompounds) fractured.push_back(c);
             //fractured.push_back(Compound{ cell->convexes });

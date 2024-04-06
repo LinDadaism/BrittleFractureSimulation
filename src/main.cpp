@@ -261,8 +261,8 @@ void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
 
 // TODO: can look into https://doc.cgal.org/latest/Generator/Generator_2random_points_in_tetrahedral_mesh_3_8cpp-example.html#_a9
     std::random_device rd;  // Obtain random number from hardware and seed the generator
-    //std::mt19937 gen(rd());
-    std::mt19937 gen(19);
+    std::mt19937 gen(rd());
+    //std::mt19937 gen(19);
     std::uniform_real_distribution<> disX(minCorner.x(), maxCorner.x());
     std::uniform_real_distribution<> disY(minCorner.y(), maxCorner.y());
     std::uniform_real_distribution<> disZ(minCorner.z(), maxCorner.z());
@@ -534,21 +534,21 @@ bool key_down_island(igl::opengl::glfw::Viewer& viewer, unsigned char key, int m
     gCurrKey = key; // keep a global record
     if (key >= '0' && key <= '9')
     {
-        gCurrKey = key;
-        gCurrKey = int(gCurrKey - '0');
-        if (gCurrKey >= gCompounds.size()) {
+        int cellIndex = int(gCurrKey - '0');
+        if (cellIndex >= gCompounds.size()) {
             std::cout << "There are " << gCompounds.size() << " compounds in total." << std::endl;
             viewer.data().clear();
             drawDebugVisuals(viewer);
             return false;
         }
-        Compound temp = gCompounds[gCurrKey];
+        Compound temp = gCompounds[cellIndex];
         gCurrCompounds = islandDetection(temp);
         gCurrConvex = 0;
     }
-    else if (key == 'n' || 'N' && gCurrCompounds.size() > 0) {
+    else if ((key == 'n' || key == 'N') && gCurrCompounds.size() > 0) {
         gCurrConvex = (gCurrConvex + 1) % gCurrCompounds.size();
     }
+
     if (gCurrCompounds.size() > 0) {
         Compound com = gCurrCompounds[gCurrConvex];
         std::vector<Eigen::Vector3d> final_vertices;
@@ -620,67 +620,80 @@ bool key_down_pipe(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
     using namespace Eigen;
 
     gCurrKey = key; // keep a global record
+    std::vector<Eigen::Vector3d> final_vertices;
+    std::vector<std::vector<int>> final_faces;
+
+    // TODO: fix drawing all fracture pieces
+    //if (key == '-') {
+    //    viewer.data().clear();
+
+    //    int numRowV = 0;
+    //    int numRowF = 0;
+    //    for (auto const& com : gCompounds) {
+    //        for (auto const& c : com.convexes) {
+    //            numRowV += c->vertices.size();
+    //            numRowF += c->faces.size();
+    //        }
+    //    }
+
+    //    Eigen::MatrixXd compV(numRowV, 3);
+    //    Eigen::MatrixXi compF(numRowF, 3); // assuming triangulated faces
+    //    int currRowV = 0;
+    //    int currRowF = 0;
+    //    for (auto const& com : gCompounds) {
+    //        auto mesh = splitMeshesPt(com.convexes, gExplodeAmt);
+    //        auto V_temp = convertToMatrixXd(mesh.vertices);
+    //        auto F_temp = convertToMatrixXi(mesh.faces);
+
+    //        compV.block(currRowV, 0, V_temp.rows(), 3) = V_temp;
+    //        compF.block(currRowF, 0, F_temp.rows(), 3) = F_temp;
+    //        currRowV += V_temp.rows();
+    //        currRowF += F_temp.rows();
+    //    }
+    //    viewer.data().set_mesh(compV, compF);
+    //    viewer.data().set_face_based(true);
+    //    drawDebugVisuals(viewer);
+
+    //    return false;
+    //}
+
     if (key >= '0' && key <= '9')
     {
         int cellIndex = int(key - '0');
         gCurrConvex = cellIndex; 
-        if (gCurrConvex >= gCompounds.size()) {
-            std::cout << "Error: exceed total compound number!" << std::endl;
-            return false;
-        }
-        std::vector<Eigen::Vector3d> final_vertices;
-        std::vector<std::vector<int>> final_faces;
-        auto com = gCompounds[gCurrConvex];
-        // draw every convexes in current compound
-        for (auto const& c : com.convexes) {
-            int previous_verts = final_vertices.size();
-            int previous_faces = final_faces.size();
-            final_vertices.insert(final_vertices.end(), c->vertices.begin(), c->vertices.end());
-            final_faces.insert(final_faces.end(), c->faces.begin(), c->faces.end());
-            for (size_t i = previous_faces; i < final_faces.size(); i++) {
-                final_faces[i][0] += previous_verts;
-                final_faces[i][1] += previous_verts;
-                final_faces[i][2] += previous_verts;
-            }
-
-            auto V_temp = convertToMatrixXd(final_vertices);
-            auto F_temp = convertToMatrixXi(final_faces);
-            viewer.data().clear();
-            viewer.data().set_mesh(V_temp, F_temp);
-            viewer.data().set_face_based(true);
-        }
     }
-    if ((key == 'n' || 'N')) {
+    else if ((key == 'n' || key == 'N')) {
         gCurrConvex = gCurrConvex + 1;
-        if (gCurrConvex >= gCompounds.size()) {
-            std::cout << "Error: exceed total compound number!" << std::endl;
-            return false;
-        }
-        std::vector<Eigen::Vector3d> final_vertices;
-        std::vector<std::vector<int>> final_faces;
-        auto com = gCompounds[gCurrConvex];
-        // draw every convexes in current compound
-        for (auto const& c : com.convexes) {
-            int previous_verts = final_vertices.size();
-            int previous_faces = final_faces.size();
-            final_vertices.insert(final_vertices.end(), c->vertices.begin(), c->vertices.end());
-            final_faces.insert(final_faces.end(), c->faces.begin(), c->faces.end());
-            for (size_t i = previous_faces; i < final_faces.size(); i++) {
-                final_faces[i][0] += previous_verts;
-                final_faces[i][1] += previous_verts;
-                final_faces[i][2] += previous_verts;
-            }
-
-            auto V_temp = convertToMatrixXd(final_vertices);
-            auto F_temp = convertToMatrixXi(final_faces);
-            viewer.data().clear();
-            viewer.data().set_mesh(V_temp, F_temp);
-            viewer.data().set_face_based(true);
-        }
     }
-        drawDebugVisuals(viewer);
 
+    if (gCurrConvex >= gCompounds.size()) {
+        std::cout << "Error: gCurrConvex" << gCurrConvex << " exceed total compound number: " << gCompounds.size() << std::endl;
         return false;
+    }
+
+    // draw every convexes in current compound
+    auto com = gCompounds[gCurrConvex];    
+    for (auto const& c : com.convexes) {
+        int previous_verts = final_vertices.size();
+        int previous_faces = final_faces.size();
+        final_vertices.insert(final_vertices.end(), c->vertices.begin(), c->vertices.end());
+        final_faces.insert(final_faces.end(), c->faces.begin(), c->faces.end());
+        for (size_t i = previous_faces; i < final_faces.size(); i++) {
+            final_faces[i][0] += previous_verts;
+            final_faces[i][1] += previous_verts;
+            final_faces[i][2] += previous_verts;
+        }
+
+        auto V_temp = convertToMatrixXd(final_vertices);
+        auto F_temp = convertToMatrixXi(final_faces);
+        viewer.data().clear();
+        viewer.data().set_mesh(V_temp, F_temp);
+        viewer.data().set_face_based(true);
+    }
+
+    drawDebugVisuals(viewer);
+
+    return false;
 }
 
 void switchTestMode(igl::opengl::glfw::Viewer& viewer)
@@ -718,7 +731,13 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
     }
     if (gTestMode == Island)
     {
-        //createMeshConvexs(gClippedMeshConvex, true); // TODO: uncomment to test custom mesh
+        //createMeshConvexs(gClippedMeshConvex); // uncomment to test custom mesh
+        cout << "gclippedmeshconv: " << gClippedMeshConvex.size() << endl;
+        cout << "gCellVertices: " << gCellVertices.size() << endl;
+        cout << "gCellFaces: " << gCellFaces.size() << endl;
+        cout << "gCellEdges: " << gCellEdges.size() << endl;
+        cout << "gCompounds: " << gCompounds.size() << endl;
+
         testIsland(gClippedMeshConvex, gCellVertices, gCellFaces, gCellEdges, gCompounds);  // Hardcoded cubes as input compound
 
         viewer.callback_key_down = &key_down_island;
@@ -758,7 +777,7 @@ int main(int argc, char *argv[])
 #if VOCAD
   // run CoACD executable to decompose surface mesh into convex hulls
   LPCSTR applicationName = "..\\coacd.exe";
-  char commandLine[] = "-i ..\\assets\\obj\\bunny.obj -o ..\\assets\\results\\bunny_full.obj -ro ..\\assets\\results\\bunny_remesh.obj";
+  char commandLine[] = "-i ..\\assets\\obj\\cube.obj -o ..\\assets\\results\\cube_out.obj -ro ..\\assets\\results\\cube_remesh.obj";
   if (executeCommand(applicationName, commandLine))
   {
       cout << "CoACD executed successfully!" << endl;
