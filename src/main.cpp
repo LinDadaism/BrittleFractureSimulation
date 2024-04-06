@@ -72,7 +72,7 @@ std::vector<Compound> gCurrCompounds;           // Global var for testing island
 int  gCurrConvex = 0;                           // Global var for testing island detection 
 
 // ReadObj testing 
-std::vector<spConvex> ginitialConvexes;        // Global var for testing readOBJ function
+Compound ginitialConvexes;        // Global var for testing readOBJ function
 std::string gOBJPath = "..\\assets\\results\\bunny_out.obj";
 // Pipeline testing
 
@@ -593,15 +593,15 @@ bool key_down_obj(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modi
     {
         int cellIndex = int(key - '0');
         //auto mesh = gClippedMeshConvex[cellIndex]; // for testing cube positioning
-        auto V_temp = convertToMatrixXd(ginitialConvexes[cellIndex]->vertices);
-        auto F_temp = convertToMatrixXi(ginitialConvexes[cellIndex]->faces);
+        auto V_temp = convertToMatrixXd(ginitialConvexes.convexes[cellIndex]->vertices);
+        auto F_temp = convertToMatrixXi(ginitialConvexes.convexes[cellIndex]->faces);
         viewer.data().clear();
         viewer.data().set_mesh(V_temp, F_temp);
         viewer.data().set_face_based(true);
     }
     if (key == '-')
     {
-        auto mesh = splitMeshesPt(ginitialConvexes, gExplodeAmt);
+        auto mesh = splitMeshesPt(ginitialConvexes.convexes, gExplodeAmt);
         auto V_temp = convertToMatrixXd(mesh.vertices);
         auto F_temp = convertToMatrixXi(mesh.faces);
         viewer.data().clear();
@@ -728,7 +728,7 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
     {
         testObj(gOBJPath, ginitialConvexes);
         viewer.callback_key_down = &key_down_obj;
-        key_down_obj(viewer, '0', 0);
+        key_down_obj(viewer, '-', 0);
     }
     if (gTestMode == Pipe)
     {
@@ -773,7 +773,6 @@ int main(int argc, char *argv[])
   /////////////////////////////////////////////////////////////////////////
   //                         Voronoi decomposition                       //
   /////////////////////////////////////////////////////////////////////////
-  
   // Get the mesh's bounding box
   minCorner = V.colwise().minCoeff();
   maxCorner = V.colwise().maxCoeff();
@@ -831,7 +830,7 @@ int main(int argc, char *argv[])
                   }
                   if (gTestMode == OBJ)
                   {
-                      auto mesh = splitMeshesPt(ginitialConvexes, gExplodeAmt);
+                      auto mesh = splitMeshesPt(ginitialConvexes.convexes, gExplodeAmt);
                       auto V_temp = convertToMatrixXd(mesh.vertices);
                       auto F_temp = convertToMatrixXi(mesh.faces);
                       viewer.data().clear();

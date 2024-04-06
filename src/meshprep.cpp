@@ -1,6 +1,6 @@
 #include "meshprep.h"
 
-std::vector<spConvex> readOBJByComponents(const std::string& filePath) {
+Compound readOBJByComponents(const std::string& filePath) {
     std::ifstream file(filePath);
     std::vector<spConvex> meshes;
     std::string line;
@@ -53,5 +53,5 @@ std::vector<spConvex> readOBJByComponents(const std::string& filePath) {
         calculateCentroid(*cur, Eigen::Vector3d(0, 0, 0));
         meshes.push_back(cur);
     }
-    return meshes;
+    return Compound{ meshes };
 }

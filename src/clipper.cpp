@@ -2,8 +2,8 @@
 #include <iostream>
 #include <chrono>
 
-#define MULTITHREAD 
-#ifdef MULTITHREAD
+#define MULTITHREAD 0
+#if MULTITHREAD
     #define CGAL_HAS_THREADS
     #define BOOST_HAS_THREADS
 #endif
@@ -184,7 +184,7 @@ bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex&
     return true;
 }
 
-#ifdef MULTITHREAD
+#if MULTITHREAD
 void workerClipAABB(int cellID, int cell_num, Compound& compound, Pattern& pattern, std::vector<std::pair<size_t, bool>> intersects) {
     for (const auto& inter : intersects) {
         // for all intersections that is between a cell and a convex
@@ -229,7 +229,7 @@ void clipAABB(Compound& compound, Pattern& pattern) {
         intersection_list.push_back(intersects);
     }
     // iterate each cell and find all intersections 
-#ifdef MULTITHREAD
+#if MULTITHREAD
     std::vector<std::thread> threads;
     for (int i = 0; i < cell_num; ++i) {
         std::thread myThread(workerClipAABB, i, cell_num, compound, pattern, intersection_list[i]);
@@ -238,8 +238,7 @@ void clipAABB(Compound& compound, Pattern& pattern) {
     for (auto& thread : threads) {
         thread.join();
     }
-#endif
-#ifndef MULTITHREAD
+#else
     for (int i = 0; i < cell_num; ++i) {
         std::vector<std::pair<size_t, bool>> intersects = tree.get_all_intersections_and_inclusions(i);
         for (const auto& inter : intersects) {
