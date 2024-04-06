@@ -534,12 +534,15 @@ bool key_down_island(igl::opengl::glfw::Viewer& viewer, unsigned char key, int m
     gCurrKey = key; // keep a global record
     if (key >= '0' && key <= '9')
     {
-        int cellIndex = int(gCurrKey - '0');
-        if (cellIndex > gCompounds.size()) {
+        gCurrKey = key;
+        gCurrKey = int(gCurrKey - '0');
+        if (gCurrKey >= gCompounds.size()) {
             std::cout << "There are " << gCompounds.size() << " compounds in total." << std::endl;
+            viewer.data().clear();
+            drawDebugVisuals(viewer);
             return false;
         }
-        Compound temp = gCompounds[cellIndex];
+        Compound temp = gCompounds[gCurrKey];
         gCurrCompounds = islandDetection(temp);
         gCurrConvex = 0;
     }
@@ -742,7 +745,7 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = "../assets/obj/bunny.obj";/*"../assets/obj/cube.obj";*/ /*".. / assets / bunny.off";*/ // ".. / assets / Armadillo.ply"
+    string filePath = /*"../assets/obj/bunny.obj";*/"../assets/obj/cube.obj"; /*".. / assets / bunny.off";*/ // ".. / assets / Armadillo.ply"
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      

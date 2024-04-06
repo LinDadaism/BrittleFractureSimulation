@@ -288,7 +288,7 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
     // compound formation 
     for (const auto& cell : pattern.getCells()) {
         auto com = Compound{ cell->convexes };
-        gCompounds.push_back(com);
+        if (cell->convexes.size() > 0) gCompounds.push_back(com);
     }
 }
 
