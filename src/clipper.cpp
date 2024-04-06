@@ -1,6 +1,11 @@
 #include "clipper.h"
+#include <iostream>
+#include <chrono>
 
-
+#define MULTITHREAD 
+#define CGAL_HAS_THREADS
+#define BOOST_HAS_THREADS
+std::mutex patternMutex;
 Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
 {}
 
@@ -22,7 +27,7 @@ void Pattern::createCellsfromVoro() {
         auto curCell = o_cellFaces[i];
         Surface_mesh sm; 
         buildSMfromVF(o_cellVertices[i], o_cellFaces[i], sm);
-        spCell cellptr(new Cell{i, std::vector<spConvex>{}, sm });
+        spCell cellptr(new Cell{i, std::vector<spConvex>{}, o_cellVertices[i], o_cellFaces[i], sm });
         cells.push_back(cellptr);
     }
 }
@@ -177,6 +182,33 @@ bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex&
     return true;
 }
 
+#ifdef MULTITHREAD
+void workerClipAABB(int cellID, int cell_num, Compound& compound, Pattern& pattern, std::vector<std::pair<size_t, bool>> intersects) {
+    for (const auto& inter : intersects) {
+        // for all intersections that is between a cell and a convex
+        if (inter.first >= cell_num) {
+            Surface_mesh convexm;
+            CGAL::copy_face_graph(compound.convexes[inter.first - cell_num]->convexMesh, convexm);
+            Surface_mesh cellm;
+            CGAL::copy_face_graph(pattern.getCells()[cellID]->cellMesh, cellm);
+            // clipping between mesh and mesh 
+            //PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
+            PMP::corefine_and_compute_intersection(convexm, cellm, convexm);
+            convexm.collect_garbage();
+            double volume = PMP::volume(convexm);
+            std::vector<Eigen::Vector3d> vertices;
+            std::vector<std::vector<int>> faces;
+            // double check that they actually intersected 
+            if (volume > 0) {
+                buildVFfromSM(convexm, vertices, faces);
+            }
+            spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
+            pattern.getCells()[cellID]->convexes.push_back(result);
+        }
+    }
+}
+#endif
+
 void clipAABB(Compound& compound, Pattern& pattern) {
     CGAL::Rigid_triangle_mesh_collision_detection<Surface_mesh> tree; 
     int cell_num = pattern.getCells().size();
@@ -184,22 +216,47 @@ void clipAABB(Compound& compound, Pattern& pattern) {
     // put all surface meshes into AABB tree 
     for (const auto& cell : pattern.getCells()) {
         // assume all meshes 1 connected pieces
+        //tree.add_mesh(cell->cellMesh, PMP::parameters::apply_per_connected_component(false));
         tree.add_mesh(cell->cellMesh, PMP::parameters::apply_per_connected_component(false));
+
     }
     for (const auto& convex : compound.convexes) {
+        //tree.add_mesh(convex->convexMesh, PMP::parameters::apply_per_connected_component(false));
         tree.add_mesh(convex->convexMesh, PMP::parameters::apply_per_connected_component(false));
+
+    }
+    std::vector<std::vector<std::pair<size_t, bool>>> intersection_list;
+    for (int i = 0; i < cell_num; ++i) {
+        std::vector<std::pair<size_t, bool>> intersects = tree.get_all_intersections_and_inclusions(i);
+        intersection_list.push_back(intersects);
     }
     // iterate each cell and find all intersections 
+#ifdef MULTITHREAD
+    std::vector<std::thread> threads;
+    for (int i = 0; i < cell_num; ++i) {
+        std::thread myThread(workerClipAABB, i, cell_num, compound, pattern, intersection_list[i]);
+        threads.push_back(std::move(myThread));
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
+#endif
+#ifndef MULTITHREAD
     for (int i = 0; i < cell_num; ++i) {
         std::vector<std::pair<size_t, bool>> intersects = tree.get_all_intersections_and_inclusions(i);
         for (const auto& inter : intersects) {
             // for all intersections that is between a cell and a convex
             if (inter.first >= cell_num) {
-                MeshConvex convex_copy = *compound.convexes[inter.first - cell_num];
-                Cell       cell_copy = *pattern.getCells()[i];
-                Surface_mesh convexm = convex_copy.convexMesh;
-                Surface_mesh cellm = cell_copy.cellMesh;
-                PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
+                Surface_mesh convexm; 
+                CGAL::copy_face_graph(compound.convexes[inter.first - cell_num]->convexMesh, convexm);
+                Surface_mesh cellm; 
+                CGAL::copy_face_graph(pattern.getCells()[i]->cellMesh, cellm);
+                //clipping between mesh and mesh 
+                auto start = std::chrono::high_resolution_clock::now();
+                //PMP::clip(convexm, cellm, PMP::parameters::clip_volume(true).use_compact_clipper(true));
+                PMP::corefine_and_compute_intersection(convexm, cellm, convexm);
+                auto stop = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
                 convexm.collect_garbage();
                 double volume = PMP::volume(convexm);
                 std::vector<Eigen::Vector3d> vertices;
@@ -213,6 +270,12 @@ void clipAABB(Compound& compound, Pattern& pattern) {
             }
         }
     }
+#endif
+    // DEBUG
+    //std::cout << "Clipping times after AABB tree: " << counter << std::endl;
+    //std::cout << "Including times after AABB tree: " << includer << std::endl;
+    //std::cout << "Total clipping time after AABB tree: " << total_time.count() << std::endl;
+
 }
 
 

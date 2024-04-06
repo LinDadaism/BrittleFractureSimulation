@@ -47,7 +47,7 @@ Eigen::MatrixXi TT; // #TT by 4 matrix for tet face indices
 Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `boundary_facets` is called on TT)
 
 // Voronoi diagram
-int gNumPoints = 10;
+int gNumPoints = 30;
 vector<Eigen::Vector3d> gPoints;
 
 // TODO: encapsulate class Compound
@@ -261,8 +261,8 @@ void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
 
 // TODO: can look into https://doc.cgal.org/latest/Generator/Generator_2random_points_in_tetrahedral_mesh_3_8cpp-example.html#_a9
     std::random_device rd;  // Obtain random number from hardware and seed the generator
-    std::mt19937 gen(rd());
-    //std::mt19937 gen(19);
+    //std::mt19937 gen(rd());
+    std::mt19937 gen(19);
     std::uniform_real_distribution<> disX(minCorner.x(), maxCorner.x());
     std::uniform_real_distribution<> disY(minCorner.y(), maxCorner.y());
     std::uniform_real_distribution<> disZ(minCorner.z(), maxCorner.z());
