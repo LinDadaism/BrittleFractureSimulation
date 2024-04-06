@@ -2,6 +2,11 @@
 *.slo
 *.lo
 *.o
+
+# Assets
+*.wrl
+*_remesh.obj
+
 Armadillo.ply
 armadillo.ply
 Armadillo.obj
