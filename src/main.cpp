@@ -679,11 +679,12 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
     }
     if (gTestMode == Clip)
     {
-        createMeshConvexs(gClippedMeshConvex); // TESTING for mesh clipping
+        createMeshConvexs(gClippedMeshConvex);
 
         viewer.callback_key_down = &key_down_clip;
         key_down_clip(viewer, '0', 0);
     }
+    // Hardcoded 8 cubes as convex hulls
     if (gTestMode == Weld)
     {
         pre_test_welding(V, F);
@@ -692,9 +693,11 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
         viewer.callback_key_down = &key_down_weld;
         key_down_weld(viewer, '0', 0);
     }
+    // Hardcoded 4 cubes (2 upper right row, 2 lower left row) as input compound
+    // TODO: crashes in Release build
     if (gTestMode == Island)
     {
-        testIsland(gClippedMeshConvex, gCellVertices, gCellFaces, gCellEdges, gCompounds);  // Hardcoded cubes as input compound
+        testIsland(gClippedMeshConvex, gCellVertices, gCellFaces, gCellEdges, gCompounds);
 
         viewer.callback_key_down = &key_down_island;
         key_down_island(viewer, '0', 0);
@@ -722,7 +725,7 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = /*"../assets/obj/bunny.obj";*/"../assets/obj/bunny.obj"; /*".. / assets / bunny.off";*/ // ".. / assets / Armadillo.ply"
+    string filePath = /*"../assets/obj/bunny.obj";*/"../assets/obj/cube.obj"; /*".. /assets/bunny.off";*/ // "../assets/Armadillo.ply";
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      
