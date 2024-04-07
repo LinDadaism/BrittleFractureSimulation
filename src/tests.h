@@ -297,7 +297,7 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
 //TEST for Customize Readobj function
 ////////////////////////////////////////////////////////////////////
 void testObj(const std::string& filePath, 
-    Compound& compound) {
+    std::vector<spConvex>& compound) {
     compound = readOBJByComponents(filePath);
 }
 
@@ -308,6 +308,11 @@ void testPipeline(const std::string& filePath,
     Pattern& pattern, 
     std::vector<Compound>& splitted) {
     auto convexes = readOBJByComponents(filePath);
-    Compound original{convexes};
+
+    // Using weighted sum to approximate compound's CoM
+    // Some of the original convex hulls might be overlapping so this is just an approximate.
+    Eigen::Vector3d centroid = calculateCentroidCompound(convexes);
+    Compound original{convexes, centroid};
+    
     splitted = fracturePipeline(original, pattern);
 }

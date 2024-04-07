@@ -23,28 +23,28 @@
 #include "tests.h"
 
 
-typedef std::pair<int, int> Edge; // Edge represented by pair of vertex indices
+typedef std::pair<int, int> Edge;               // Edge represented by pair of vertex indices
 
 using namespace std;
 
 #define DEBUG       0
 #define DEBUG_VORO  0
-#define VOCAD       0
+#define COCAD       0
 
 // Input polygon
-Eigen::MatrixXd V; // #V by 3 matrix for vertices
-Eigen::MatrixXi F; // matrix for face indices
-Eigen::MatrixXd B; // matrix for barycenters
-Eigen::MatrixXd N; // matrix for normals
-Eigen::Vector3d minCorner, maxCorner; // min and max corners of mesh's bounding box
+Eigen::MatrixXd V;                              // #V by 3 matrix for vertices
+Eigen::MatrixXi F;                              // matrix for face indices
+Eigen::MatrixXd B;                              // matrix for barycenters
+Eigen::MatrixXd N;                              // matrix for normals
+Eigen::Vector3d minCorner, maxCorner;           // min and max corners of mesh's bounding box
 
 Eigen::MatrixXd meshV;
 Eigen::MatrixXi meshF;
 
 // Tetrahedralized interior
-Eigen::MatrixXd TV; // #TV by 3 matrix for vertex positions
-Eigen::MatrixXi TT; // #TT by 4 matrix for tet face indices
-Eigen::MatrixXi TF; // #TF by 3 matrix for triangle face indices ('f', else `boundary_facets` is called on TT)
+Eigen::MatrixXd TV;                             // #TV by 3 matrix for vertex positions
+Eigen::MatrixXi TT;                             // #TT by 4 matrix for tet face indices
+Eigen::MatrixXi TF;                             // #TF by 3 matrix for triangle face indices ('f', else `boundary_facets` is called on TT)
 
 // Voronoi diagram
 int gNumPoints = 10;
@@ -58,25 +58,22 @@ vector<Eigen::MatrixXi> gCellEdges;              // Edges of each Voronoi cell r
 // GUI
 char gCurrKey = '0';
 Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
-//int gTestMode = 0; // 0-tet visualization, 1-clip, 2-weld, 3-island
-// Expose an enumeration type
+
 enum MeshOp { Default = 0, Tet, Clip, Weld, Island, OBJ, Pipe};
 static MeshOp gTestMode = Default;
 double gExplodeAmt = 0.1f;
 
 // Mesh operations
 std::vector<MeshConvex> gClippedMeshConvex;     // Global var for testing mesh clipping 
-std::vector<Pattern::spCell> gCells;           // Global var for testing welding 
-std::vector<Compound> gCompounds;              // Global var for testing island detection 
+std::vector<Pattern::spCell> gCells;            // Global var for testing welding 
+std::vector<Compound> gCompounds;               // Global var for testing island detection 
 std::vector<Compound> gCurrCompounds;           // Global var for testing island detection 
-int  gCurrConvex = 0;                           // Global var for testing island detection 
+int  gCurrConvex = 0;                           // Global var for testing island detection
+std::vector<spConvex> gFracturedConvex;         // Global var for testing pipeline
 
 // ReadObj testing 
-Compound ginitialConvexes;        // Global var for testing readOBJ function
+Compound ginitialConvexes;                      // Global var for testing readOBJ function
 std::string gOBJPath = "..\\assets\\results\\bunny_out.obj";
-// Pipeline testing
-
-
 
 
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
@@ -190,69 +187,6 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     viewer.data().set_mesh(CV, CF);
     viewer.data().set_face_based(true);
 #endif
-}
-
-// Helper func, called every time a keyboard button is pressed
-// Slice model at various percentage to view internal tetrahedral structure
-bool key_down_tet(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
-    using namespace Eigen;
-
-    gCurrKey = key; // keep a global record
-
-    if (key == '0')
-    {
-        viewer.data().clear();
-    }
-    if (key == '-')
-    {
-        viewer.data().clear();
-        viewer.data().set_mesh(V, F);
-        viewer.data().set_face_based(true);
-    }
-
-    if (key >= '1' && key <= '9')
-    {
-        double t = double((key - '1') + 1) / 9.0;
-
-        VectorXd v = B.col(2).array() - B.col(2).minCoeff();
-        v /= v.col(0).maxCoeff();
-
-        std::vector<int> s;
-
-        for (unsigned i = 0; i < v.size(); ++i)
-            if (v(i) < t)
-                s.push_back(i);
-
-        MatrixXd V_temp(s.size() * 4, 3);
-        MatrixXi F_temp(s.size() * 4, 3);
-        MatrixXd B_temp(s.size(), 3);
-
-        for (unsigned i = 0; i < s.size(); ++i)
-        {
-            V_temp.row(i * 4 + 0) = TV.row(TT(s[i], 0));
-            V_temp.row(i * 4 + 1) = TV.row(TT(s[i], 1));
-            V_temp.row(i * 4 + 2) = TV.row(TT(s[i], 2));
-            V_temp.row(i * 4 + 3) = TV.row(TT(s[i], 3));
-            F_temp.row(i * 4 + 0) << (i * 4) + 0, (i * 4) + 1, (i * 4) + 3;
-            F_temp.row(i * 4 + 1) << (i * 4) + 0, (i * 4) + 2, (i * 4) + 1;
-            F_temp.row(i * 4 + 2) << (i * 4) + 3, (i * 4) + 2, (i * 4) + 0;
-            F_temp.row(i * 4 + 3) << (i * 4) + 1, (i * 4) + 2, (i * 4) + 3;
-            B_temp.row(i) = (TV.row(TT(s[i], 0)) +
-                TV.row(TT(s[i], 1)) +
-                TV.row(TT(s[i], 2)) +
-                TV.row(TT(s[i], 3))) / 4;
-        }
-
-        viewer.data().clear();
-        viewer.data().set_mesh(V_temp, F_temp);
-        viewer.data().add_points(B_temp, Eigen::RowVector3d(1, 0, 0));
-        viewer.data().point_size = 10.0; // default is 30
-        viewer.data().set_face_based(true);
-    }
-
-    //drawDebugVisuals(viewer);
-
-    return false;
 }
 
 void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
@@ -477,11 +411,83 @@ MeshConvex splitMeshesPt(const std::vector<spConvex>& meshes, double distance) {
     return MeshConvex{ final_vertices, final_faces };
 }
 
+// Helper func to set viewer data
+void setViewerMeshData(igl::opengl::glfw::Viewer& viewer,
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<std::vector<int>>& faces) {
+    auto V_temp = convertToMatrixXd(vertices);
+    auto F_temp = convertToMatrixXi(faces);
+    viewer.data().clear();
+    viewer.data().set_mesh(V_temp, F_temp);
+    viewer.data().set_face_based(true);
+}
+
+// Helper func, called every time a keyboard button is pressed
+// Slice model at various percentage to view internal tetrahedral structure
+bool key_down_tet(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
+    using namespace Eigen;
+
+    gCurrKey = key; // keep a global record
+
+    if (key == '0')
+    {
+        viewer.data().clear();
+    }
+    if (key == '-')
+    {
+        viewer.data().clear();
+        viewer.data().set_mesh(V, F);
+        viewer.data().set_face_based(true);
+    }
+
+    if (key >= '1' && key <= '9')
+    {
+        double t = double((key - '1') + 1) / 9.0;
+
+        VectorXd v = B.col(2).array() - B.col(2).minCoeff();
+        v /= v.col(0).maxCoeff();
+
+        std::vector<int> s;
+
+        for (unsigned i = 0; i < v.size(); ++i)
+            if (v(i) < t)
+                s.push_back(i);
+
+        MatrixXd V_temp(s.size() * 4, 3);
+        MatrixXi F_temp(s.size() * 4, 3);
+        MatrixXd B_temp(s.size(), 3);
+
+        for (unsigned i = 0; i < s.size(); ++i)
+        {
+            V_temp.row(i * 4 + 0) = TV.row(TT(s[i], 0));
+            V_temp.row(i * 4 + 1) = TV.row(TT(s[i], 1));
+            V_temp.row(i * 4 + 2) = TV.row(TT(s[i], 2));
+            V_temp.row(i * 4 + 3) = TV.row(TT(s[i], 3));
+            F_temp.row(i * 4 + 0) << (i * 4) + 0, (i * 4) + 1, (i * 4) + 3;
+            F_temp.row(i * 4 + 1) << (i * 4) + 0, (i * 4) + 2, (i * 4) + 1;
+            F_temp.row(i * 4 + 2) << (i * 4) + 3, (i * 4) + 2, (i * 4) + 0;
+            F_temp.row(i * 4 + 3) << (i * 4) + 1, (i * 4) + 2, (i * 4) + 3;
+            B_temp.row(i) = (TV.row(TT(s[i], 0)) +
+                TV.row(TT(s[i], 1)) +
+                TV.row(TT(s[i], 2)) +
+                TV.row(TT(s[i], 3))) / 4;
+        }
+
+        viewer.data().clear();
+        viewer.data().set_mesh(V_temp, F_temp);
+        viewer.data().add_points(B_temp, Eigen::RowVector3d(1, 0, 0));
+        viewer.data().point_size = 10.0; // default is 30
+        viewer.data().set_face_based(true);
+    }
+
+    //drawDebugVisuals(viewer);
+
+    return false;
+}
+
 // Helper func, called every time a keyboard button is pressed
 // Display clipped convex in different indexed voronoi cell
 bool key_down_clip(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
-    using namespace Eigen;
-
     gCurrKey = key; // keep a global record
 
     if (key >= '0' && key <= '9')
@@ -489,11 +495,7 @@ bool key_down_clip(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
         int cellIndex = int(key - '0');
         double scale = cellIndex * 0.01;
         auto mesh = splitMeshes(gClippedMeshConvex, scale);
-        auto V_temp = convertToMatrixXd(mesh.vertices);
-        auto F_temp = convertToMatrixXi(mesh.faces);
-        viewer.data().clear();
-        viewer.data().set_mesh(V_temp, F_temp);
-        viewer.data().set_face_based(true);
+        setViewerMeshData(viewer, mesh.vertices, mesh.faces);
     }
 
     drawDebugVisuals(viewer);
@@ -513,11 +515,7 @@ bool key_down_weld(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
         int cellIndex = int(key - '0');
         auto mesh = gCells[cellIndex]->convexes[0]; // draw the first convex within this cell
         //auto mesh = gClippedMeshConvex[cellIndex]; // for testing cube positioning
-        auto V_temp = convertToMatrixXd(mesh->vertices);
-        auto F_temp = convertToMatrixXi(mesh->faces);
-        viewer.data().clear();
-        viewer.data().set_mesh(V_temp, F_temp);
-        viewer.data().set_face_based(true);
+        setViewerMeshData(viewer, mesh->vertices, mesh->faces);
     }
 
     drawDebugVisuals(viewer);
@@ -529,8 +527,6 @@ bool key_down_weld(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
 // Input key='0~9': By default draws the first convex within a cell's compound
 //      Input key = 'n/N': draws the other island(s) within the cell, if exists
 bool key_down_island(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) {
-    using namespace Eigen;
-
     gCurrKey = key; // keep a global record
     if (key >= '0' && key <= '9')
     {
@@ -566,11 +562,7 @@ bool key_down_island(igl::opengl::glfw::Viewer& viewer, unsigned char key, int m
             }
             
         }
-        auto V_temp = convertToMatrixXd(final_vertices);
-        auto F_temp = convertToMatrixXi(final_faces);
-        viewer.data().clear();
-        viewer.data().set_mesh(V_temp, F_temp);
-        viewer.data().set_face_based(true);
+        setViewerMeshData(viewer, final_vertices, final_faces);
         drawDebugVisuals(viewer);
     }
     else {
@@ -578,7 +570,6 @@ bool key_down_island(igl::opengl::glfw::Viewer& viewer, unsigned char key, int m
         drawDebugVisuals(viewer);
     }
     
-
     return false;
 }
 
@@ -592,21 +583,14 @@ bool key_down_obj(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modi
     if (key >= '0' && key <= '9')
     {
         int cellIndex = int(key - '0');
-        //auto mesh = gClippedMeshConvex[cellIndex]; // for testing cube positioning
-        auto V_temp = convertToMatrixXd(ginitialConvexes.convexes[cellIndex]->vertices);
-        auto F_temp = convertToMatrixXi(ginitialConvexes.convexes[cellIndex]->faces);
-        viewer.data().clear();
-        viewer.data().set_mesh(V_temp, F_temp);
-        viewer.data().set_face_based(true);
+        setViewerMeshData(viewer, 
+            ginitialConvexes.convexes[cellIndex]->vertices, 
+            ginitialConvexes.convexes[cellIndex]->faces);
     }
     if (key == '-')
     {
         auto mesh = splitMeshesPt(ginitialConvexes.convexes, gExplodeAmt);
-        auto V_temp = convertToMatrixXd(mesh.vertices);
-        auto F_temp = convertToMatrixXi(mesh.faces);
-        viewer.data().clear();
-        viewer.data().set_mesh(V_temp, F_temp);
-        viewer.data().set_face_based(true);
+        setViewerMeshData(viewer, mesh.vertices, mesh.faces);
     }
     drawDebugVisuals(viewer);
 
@@ -623,39 +607,22 @@ bool key_down_pipe(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
     std::vector<Eigen::Vector3d> final_vertices;
     std::vector<std::vector<int>> final_faces;
 
-    // TODO: fix drawing all fracture pieces
-    //if (key == '-') {
-    //    viewer.data().clear();
+     //TODO: fix drawing all fracture pieces
+    if (key == '-') {
+        if (gFracturedConvex.size() < 1) {
+            for (auto const& com : gCompounds) {
+                for (auto const& c : com.convexes) {
+                    gFracturedConvex.push_back(c);
+                }
+            }
+        }
 
-    //    int numRowV = 0;
-    //    int numRowF = 0;
-    //    for (auto const& com : gCompounds) {
-    //        for (auto const& c : com.convexes) {
-    //            numRowV += c->vertices.size();
-    //            numRowF += c->faces.size();
-    //        }
-    //    }
+        auto mesh = splitMeshesPt(gFracturedConvex, gExplodeAmt);
+        setViewerMeshData(viewer, mesh.vertices, mesh.faces);
+        drawDebugVisuals(viewer);
 
-    //    Eigen::MatrixXd compV(numRowV, 3);
-    //    Eigen::MatrixXi compF(numRowF, 3); // assuming triangulated faces
-    //    int currRowV = 0;
-    //    int currRowF = 0;
-    //    for (auto const& com : gCompounds) {
-    //        auto mesh = splitMeshesPt(com.convexes, gExplodeAmt);
-    //        auto V_temp = convertToMatrixXd(mesh.vertices);
-    //        auto F_temp = convertToMatrixXi(mesh.faces);
-
-    //        compV.block(currRowV, 0, V_temp.rows(), 3) = V_temp;
-    //        compF.block(currRowF, 0, F_temp.rows(), 3) = F_temp;
-    //        currRowV += V_temp.rows();
-    //        currRowF += F_temp.rows();
-    //    }
-    //    viewer.data().set_mesh(compV, compF);
-    //    viewer.data().set_face_based(true);
-    //    drawDebugVisuals(viewer);
-
-    //    return false;
-    //}
+        return false;
+    }
 
     if (key >= '0' && key <= '9')
     {
@@ -684,11 +651,7 @@ bool key_down_pipe(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod
             final_faces[i][2] += previous_verts;
         }
 
-        auto V_temp = convertToMatrixXd(final_vertices);
-        auto F_temp = convertToMatrixXi(final_faces);
-        viewer.data().clear();
-        viewer.data().set_mesh(V_temp, F_temp);
-        viewer.data().set_face_based(true);
+        setViewerMeshData(viewer, final_vertices, final_faces);
     }
 
     drawDebugVisuals(viewer);
@@ -716,11 +679,12 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
     }
     if (gTestMode == Clip)
     {
-        createMeshConvexs(gClippedMeshConvex); // TESTING for mesh clipping
+        createMeshConvexs(gClippedMeshConvex);
 
         viewer.callback_key_down = &key_down_clip;
         key_down_clip(viewer, '0', 0);
     }
+    // Hardcoded 8 cubes as convex hulls
     if (gTestMode == Weld)
     {
         pre_test_welding(V, F);
@@ -729,23 +693,19 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
         viewer.callback_key_down = &key_down_weld;
         key_down_weld(viewer, '0', 0);
     }
+    // Hardcoded 4 cubes (2 upper right row, 2 lower left row) as input compound
+    // TODO: crashes in Release build
     if (gTestMode == Island)
     {
-        //createMeshConvexs(gClippedMeshConvex); // uncomment to test custom mesh
-        cout << "gclippedmeshconv: " << gClippedMeshConvex.size() << endl;
-        cout << "gCellVertices: " << gCellVertices.size() << endl;
-        cout << "gCellFaces: " << gCellFaces.size() << endl;
-        cout << "gCellEdges: " << gCellEdges.size() << endl;
-        cout << "gCompounds: " << gCompounds.size() << endl;
-
-        testIsland(gClippedMeshConvex, gCellVertices, gCellFaces, gCellEdges, gCompounds);  // Hardcoded cubes as input compound
+        testIsland(gClippedMeshConvex, gCellVertices, gCellFaces, gCellEdges, gCompounds);
 
         viewer.callback_key_down = &key_down_island;
         key_down_island(viewer, '0', 0);
     }
     if (gTestMode == OBJ)
     {
-        testObj(gOBJPath, ginitialConvexes);
+        testObj(gOBJPath, ginitialConvexes.convexes);
+        
         viewer.callback_key_down = &key_down_obj;
         key_down_obj(viewer, '-', 0);
     }
@@ -754,8 +714,9 @@ void switchTestMode(igl::opengl::glfw::Viewer& viewer)
         Pattern pattern(gCellVertices, gCellFaces, gCellEdges);
         pattern.createCellsfromVoro();
         testPipeline(gOBJPath, pattern, gCompounds);
+        
         viewer.callback_key_down = &key_down_pipe;
-        key_down_pipe(viewer, '0', 0);
+        key_down_pipe(viewer, '-', 0);
     }
 }
 
@@ -764,7 +725,7 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = /*"../assets/obj/bunny.obj";*/"../assets/obj/cube.obj"; /*".. / assets / bunny.off";*/ // ".. / assets / Armadillo.ply"
+    string filePath = /*"../assets/obj/bunny.obj";*/"../assets/obj/cube.obj"; /*".. /assets/bunny.off";*/ // "../assets/Armadillo.ply";
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      
@@ -774,7 +735,7 @@ int main(int argc, char *argv[])
     //    igl::readSTL(stlAscii, V, F, N);
     //}
 
-#if VOCAD
+#if COCAD
   // run CoACD executable to decompose surface mesh into convex hulls
   LPCSTR applicationName = "..\\coacd.exe";
   char commandLine[] = "-i ..\\assets\\obj\\cube.obj -o ..\\assets\\results\\cube_out.obj -ro ..\\assets\\results\\cube_remesh.obj";
@@ -836,26 +797,22 @@ int main(int argc, char *argv[])
               // Expose variable directly ...
               if (ImGui::InputDouble("Explode Amount", &gExplodeAmt, 0, 0, "%.4f"))
               {
-                  if (gTestMode == Clip)
+                  if (gTestMode == Clip && gClippedMeshConvex.size() > 0)
                   {
                       auto mesh = splitMeshes(gClippedMeshConvex, gExplodeAmt);
-                      auto V_temp = convertToMatrixXd(mesh.vertices);
-                      auto F_temp = convertToMatrixXi(mesh.faces);
-                      viewer.data().clear();
-                      viewer.data().set_mesh(V_temp, F_temp);
-                      viewer.data().set_face_based(true);
-
+                      setViewerMeshData(viewer, mesh.vertices, mesh.faces);
                       drawDebugVisuals(viewer);
                   }
-                  if (gTestMode == OBJ)
+                  if (gTestMode == OBJ && ginitialConvexes.convexes.size() > 0)
                   {
                       auto mesh = splitMeshesPt(ginitialConvexes.convexes, gExplodeAmt);
-                      auto V_temp = convertToMatrixXd(mesh.vertices);
-                      auto F_temp = convertToMatrixXi(mesh.faces);
-                      viewer.data().clear();
-                      viewer.data().set_mesh(V_temp, F_temp);
-                      viewer.data().set_face_based(true);
-
+                      setViewerMeshData(viewer, mesh.vertices, mesh.faces);
+                      drawDebugVisuals(viewer);
+                  }
+                  if (gTestMode == Pipe && gFracturedConvex.size() > 0)
+                  {
+                      auto mesh = splitMeshesPt(gFracturedConvex, gExplodeAmt);
+                      setViewerMeshData(viewer, mesh.vertices, mesh.faces);
                       drawDebugVisuals(viewer);
                   }
               }

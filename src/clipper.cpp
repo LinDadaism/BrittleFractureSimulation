@@ -2,7 +2,7 @@
 #include <iostream>
 #include <chrono>
 
-#define MULTITHREAD 0
+#define MULTITHREAD 1
 #if MULTITHREAD
     #define CGAL_HAS_THREADS
     #define BOOST_HAS_THREADS
@@ -84,6 +84,19 @@ void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d center) {
         com = com / count;
     }
     mesh.centroid = Eigen::Vector3d(com.x(), com.y(), com.z());
+}
+
+Eigen::Vector3d calculateCentroidCompound(const std::vector<spConvex>& comp) {
+    Eigen::Vector3d totalWeightedCentroid(0, 0, 0);
+    double totalVolume = 0;
+
+    for (const auto& convex : comp) {
+        totalWeightedCentroid += convex->centroid * convex->volume;
+        totalVolume += convex->volume;
+    }
+    Eigen::Vector3d compoundCentroid = totalWeightedCentroid / totalVolume;
+
+    return compoundCentroid;
 }
 
 void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale) {
@@ -186,6 +199,7 @@ bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex&
 
 #if MULTITHREAD
 void workerClipAABB(int cellID, int cell_num, Compound& compound, Pattern& pattern, std::vector<std::pair<size_t, bool>> intersects) {
+    Eigen::Vector3d compCentroid = compound.centroid;
     for (const auto& inter : intersects) {
         // for all intersections that is between a cell and a convex
         if (inter.first >= cell_num) {
@@ -205,6 +219,8 @@ void workerClipAABB(int cellID, int cell_num, Compound& compound, Pattern& patte
                 buildVFfromSM(convexm, vertices, faces);
             }
             spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
+            calculateCentroid(*result, compCentroid);
+
             pattern.getCells()[cellID]->convexes.push_back(result);
         }
     }
@@ -215,6 +231,8 @@ void clipAABB(Compound& compound, Pattern& pattern) {
     ABtree tree;
     int cell_num = pattern.getCells().size();
     int convex_num = compound.convexes.size();
+    Eigen::Vector3d compCentroid = compound.centroid;
+
     // put all surface meshes into AABB tree 
     for (const auto& cell : pattern.getCells()) {
         // assume all meshes 1 connected pieces
@@ -263,6 +281,7 @@ void clipAABB(Compound& compound, Pattern& pattern) {
                     buildVFfromSM(convexm, vertices, faces);
                 }
                 spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
+                calculateCentroid(*result, compCentroid);
                 pattern.getCells()[i]->convexes.push_back(result);
             }
         }

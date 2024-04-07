@@ -1,12 +1,8 @@
-#ifndef MESH_PREP
-#define MESH_PREP
+#pragma once
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <stdexcept>
 #include "clipper.h"
 
-Compound readOBJByComponents(const std::string& filePath);
-
-
-#endif
+std::vector<spConvex> readOBJByComponents(const std::string& filePath);
