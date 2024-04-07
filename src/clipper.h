@@ -1,5 +1,4 @@
-#ifndef MESH_CLIPPER
-#define MESH_CLIPPER
+#pragma once
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
@@ -38,7 +37,7 @@ typedef Surface_mesh::Vertex_index                           Vertex_descriptor;
 typedef Surface_mesh::Face_index                             Face_descriptor;
 typedef CGAL::Rigid_triangle_mesh_collision_detection<Surface_mesh> ABtree;
 namespace PMP = CGAL::Polygon_mesh_processing;
-extern std::mutex patternMutex; // global mutex for simplicity
+extern std::mutex patternMutex;             // global mutex for simplicity
 
 // representing a convex piece of the mesh, we only need vertices because the piece is convex
 // and we can build the convex hull easily 
@@ -48,21 +47,23 @@ struct MeshConvex {
     Surface_mesh convexMesh;                // convenient for cgal operations  
     Eigen::Vector3d centroid{0, 0, 0};      // center of mass of a set of points
     double volume; 
-    std::unordered_set<int> group;               // data structure used in island detection
 };
 typedef std::shared_ptr<MeshConvex>                          spConvex;
 
 // representing a convex piece of the fracture pattern
 struct Cell {
-    int id; // useful to track back all vertices and faces in Pattern 
-    std::vector<spConvex> convexes; // Store mesh convexes for intersected pieces 
+    int id;                                 // useful to track back all vertices and faces in Pattern 
+    std::vector<spConvex> convexes;         // Store mesh convexes for intersected pieces 
     std::vector<Eigen::Vector3d> vertices;
     std::vector<std::vector<int>> faces;
-    Surface_mesh cellMesh;            // convenient for cgal operations  
+    Surface_mesh cellMesh;                  // convenient for cgal operations  
 };
 
 struct Compound {
-    std::vector<spConvex> convexes; // a compound is consisted of bunch of convex pieces 
+    std::vector<spConvex> convexes;         // a compound is consisted of bunch of convex pieces
+    //Eigen::Vector3d minCorner{ 0, 0, 0 };   // min & max corners of compound's AABB
+    //Eigen::Vector3d maxCorner{ 0, 0, 0 };
+    Eigen::Vector3d centroid{ 0, 0, 0 };    // center of mass of a set of convex pieces
 };
 typedef std::shared_ptr<Compound>                           spCompound;
 
@@ -100,16 +101,22 @@ private:
 void buildSMfromVF(const std::vector<Eigen::Vector3d>&, const std::vector<std::vector<int>>&, Surface_mesh&);
 // convert triangulated Surface_mesh data into vertices+faces data
 void buildVFfromSM(const Surface_mesh&, std::vector<Eigen::Vector3d>&, std::vector<std::vector<int>>&);
+
 // calculate the centroid of a MeshConvex
 void calculateCentroid(MeshConvex& mesh, Eigen::Vector3d com); 
+// calculate the centroid of a Compound
+Eigen::Vector3d calculateCentroidCompound(const std::vector<spConvex>& comp);
 // move vertices in MeshConvex by scale in direction
 void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale);
+
 // use a single cell to mesh clip a single convex piece
 bool clipConvexAgainstCell(const MeshConvex& convex, const Cell& cell, spConvex& out_convex);
 // Accelerate the clipping process using AABB tree 
 void clipAABB(Compound& compound, Pattern& pattern);
+
 // weld process for each cell in the pattern
 void weldforPattern(Pattern& pattern);
+
 // create a plane from 3 points
 Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vector3d p3);
 // the boring bit - injecting a hash specialisation into the std:: namespace
@@ -118,8 +125,9 @@ Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vecto
 namespace std {
     template<> struct hash<::Eigen::Vector4d> : boost::hash<::Eigen::Vector4d> {};
 }
+
 // island detection algorithm 
 std::vector<Compound> islandDetection(Compound& old_compound);
+
 // pipeline of fracture algorithm 
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern); 
-#endif // !MESH_CLIPPER

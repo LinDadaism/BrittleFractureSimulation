@@ -1,6 +1,6 @@
 #include "meshprep.h"
 
-Compound readOBJByComponents(const std::string& filePath) {
+std::vector<spConvex> readOBJByComponents(const std::string& filePath) {
     std::ifstream file(filePath);
     std::vector<spConvex> meshes;
     std::string line;
@@ -21,7 +21,8 @@ Compound readOBJByComponents(const std::string& filePath) {
             if (vertices.size() > 0) {
                 Surface_mesh sm;
                 buildSMfromVF(vertices, faces, sm);
-                spConvex cur(new MeshConvex{ vertices, faces, sm});
+                double volume = PMP::volume(sm);
+                spConvex cur(new MeshConvex{ vertices, faces, sm, {0,0,0}, volume });
                 
                 // Update centroid for the current mesh
                 calculateCentroid(*cur, Eigen::Vector3d(0, 0, 0));
@@ -48,10 +49,11 @@ Compound readOBJByComponents(const std::string& filePath) {
     if (vertices.size() > 0) {
         Surface_mesh sm;
         buildSMfromVF(vertices, faces, sm);
-        spConvex cur(new MeshConvex{ vertices, faces, sm });
+        double volume = PMP::volume(sm);
+        spConvex cur(new MeshConvex{ vertices, faces, sm, {0,0,0}, volume });
         // Update centroid for the current mesh
         calculateCentroid(*cur, Eigen::Vector3d(0, 0, 0));
         meshes.push_back(cur);
     }
-    return Compound{ meshes };
+    return meshes;
 }
