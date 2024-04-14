@@ -9,19 +9,43 @@
 #endif
 #define INTERSECT_DISTANCE 1e-5
 std::mutex patternMutex;
+
+Pattern::Pattern() {}
+
 Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
 {}
 
-std::vector<Pattern::spCell> Pattern::getCells() {
+std::vector<spCell> Pattern::getCells() {
     return cells;
 }
 
-Pattern::AllCellVertices Pattern::getVertices() {
+AllCellVertices Pattern::getVertices() {
     return o_cellVertices;
 }
 
-Pattern::AllCellFaces Pattern::getFaces() {
+AllCellFaces Pattern::getFaces() {
     return o_cellFaces;
+}
+
+void Pattern::setVertices(const AllCellVertices& verts) {
+    for (int i = 0; i < verts.size(); i++) {
+        auto& cell = verts[i];
+        for (int j = 0; j < cell.size(); j++) {
+            o_cellVertices[i][j] = cell[j];
+        }
+    }
+}
+
+void Pattern::setFaces(const AllCellFaces& faces) {
+    for (int i = 0; i < faces.size(); i++) {
+        auto& cell = faces[i];
+        for (int j = 0; j < cell.size(); j++) {
+            auto& face = cell[j];
+            for (int k = 0; k < face.size(); k++) {
+                o_cellFaces[i][j][k] = face[k];
+            }
+        }
+    }
 }
 
 void Pattern::createCellsfromVoro() {
@@ -462,4 +486,110 @@ std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
         }
     }
     return fractured;
+}
+
+void computeVoronoiCells(
+    const std::vector<vec3>& points,
+    vec3 minCorner,
+    vec3 maxCorner,
+    AllCellVertices& cellVertices,
+    AllCellFaces& cellFaces,
+    AllCellEdges& cellEdges
+) {
+    // fully clear nested vectors
+    cellVertices.clear();
+    cellFaces.clear();
+    cellEdges.clear();
+
+    // Initialize container
+    voro::container con(
+        minCorner.x(), maxCorner.x(),
+        minCorner.y(), maxCorner.y(),
+        minCorner.z(), maxCorner.z(),
+        6, 6, 6,                // the number of grid blocks the container is divided into for computational efficiency.
+        false, false, false,    // flags setting whether the container is periodic in x/y/z direction
+        8);                     // allocate space for 8 particles in each computational block
+
+    // Add particles to the container
+    for (int i = 0; i < points.size(); i++) {
+        con.put(i, points[i].x(), points[i].y(), points[i].z());
+    }
+
+    // Prepare cell computation
+    voro::c_loop_all cl(con);
+    voro::voronoicell_neighbor c;
+    double x, y, z;
+
+    if (cl.start()) do if (con.compute_cell(c, cl)) {
+        vector<double> cVerts;
+        vector<int> neigh, fVerts;
+
+        cl.pos(x, y, z);
+        c.vertices(x, y, z, cVerts); // returns a vector of triplets (x,y,z)
+        c.face_vertices(fVerts); // returns information about which vertices comprise each face:
+        // It is a vector of integers with a specific format: 
+        // the first entry is a number k corresponding to the number of vertices
+        // making up a face, and this is followed k additional entries 
+        // describing which vertices make up this face. 
+        // e.g. (3, 16, 20, 13) would correspond to a triangular face linking
+        // vertices 16, 20, and 13 together.
+        c.neighbors(neigh); // returns the neighboring particle IDs corresponding to each face
+
+#ifdef DEBUG1
+        cout << "cell verts #: " << cVerts.size() / 3 << endl;
+        for (int i = 0; i < cVerts.size(); i++)
+        {
+            cout << cVerts[i];
+            if (i % 3 == 2)
+            {
+                cout << endl;
+            }
+            else {
+                cout << ", ";
+            }
+        }
+        cout << "\n" << endl;
+#endif
+        // Process vertices
+        vector<Eigen::Vector3d> verts;
+        for (int i = 0; i < cVerts.size(); i += 3) {
+            verts.push_back(Eigen::Vector3d(cVerts[i], cVerts[i + 1], cVerts[i + 2]));
+        }
+
+        // Process cell faces and edges
+        vector<vector<int>> faces; // faces<face vertex indices>
+        vector<Edge> edges;
+        for (int i = 0; i < fVerts.size(); i += fVerts[i] + 1) {
+            int n = fVerts[i]; // Number of vertices for this face
+            vector<int> face;
+
+            for (int k = 1; k <= n; ++k) {
+                face.push_back(fVerts[i + k]);
+
+                // Extract edges
+                int currVertex = fVerts[i + k];
+                int nextVertex = fVerts[i + ((k % n) + 1)];
+                Edge edge(std::min(currVertex, nextVertex), std::max(currVertex, nextVertex));
+
+                if (std::find(edges.begin(), edges.end(), edge) == edges.end()) {
+                    edges.push_back(edge); // Add unique edge
+                }
+            }
+            std::reverse(face.begin(), face.end());
+            faces.push_back(face);
+        }
+
+        cellVertices.push_back(verts);
+        cellFaces.push_back(faces);
+
+        // TODO: move to a helper func
+        // Convert edgesVector to Eigen::MatrixXi for current cell
+        Eigen::MatrixXi edgesMatrix(edges.size(), 2);
+        for (int i = 0; i < edges.size(); ++i) {
+            edgesMatrix(i, 0) = edges[i].first;
+            edgesMatrix(i, 1) = edges[i].second;
+        }
+        cellEdges.push_back(edgesMatrix);
+
+    } while (cl.inc());
 }

@@ -35,6 +35,7 @@ file(GLOB SRC_FILES
 		    src/vec.cpp src/vec.h
 	 	    src/clipper.cpp src/clipper.h
 		    src/meshprep.cpp src/meshprep.h
+        src/simulation.cpp src/simulation.h
         src/utils.h
         src/tests.h)
 add_library(${PROJECT_NAME} STATIC ${SRC_FILES})
@@ -70,7 +71,7 @@ file(GLOB_RECURSE host_sources voro/src/*.cc)
 
 add_library(voro++ STATIC ${host_sources})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE voro++)
+target_link_libraries(${PROJECT_NAME} PUBLIC voro++)
 
 # ==============================================================================
 # CGAL
