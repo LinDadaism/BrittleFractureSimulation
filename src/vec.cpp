@@ -166,6 +166,20 @@ vec3::vec3(const vec3& v)
 	n[VX] = v.n[VX]; n[VY] = v.n[VY]; n[VZ] = v.n[VZ]; 
 }
 
+// x, y, z Getters
+double vec3::x() const
+{
+	return n[0];
+}
+double vec3::y() const
+{
+	return n[1];
+}
+double vec3::z() const
+{
+	return n[2];
+}
+
 // ASSIGNMENT OPERATORS
 
 vec3& vec3::operator = (const vec3& v)

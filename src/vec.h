@@ -134,6 +134,11 @@ public:
 	vec3(const double x, const double y, const double z);
 	vec3(const vec3& v);					// copy constructor
 
+	// x-y-z getters
+	double x() const;
+	double y() const;
+	double z() const;
+
 	// Assignment operators
 	vec3& operator	= ( const vec3& v );	    // assignment of a vec3
 	vec3& operator += ( const vec3& v );	    // incrementation by a vec3

@@ -23,37 +23,11 @@
 #include "tests.h"
 
 
-typedef std::pair<int, int> Edge;               // Edge represented by pair of vertex indices
-
 using namespace std;
 
 #define DEBUG       0
 #define DEBUG_VORO  0
 #define COCAD       0
-
-// Input polygon
-Eigen::MatrixXd V;                              // #V by 3 matrix for vertices
-Eigen::MatrixXi F;                              // matrix for face indices
-Eigen::MatrixXd B;                              // matrix for barycenters
-Eigen::MatrixXd N;                              // matrix for normals
-Eigen::Vector3d minCorner, maxCorner;           // min and max corners of mesh's bounding box
-
-Eigen::MatrixXd meshV;
-Eigen::MatrixXi meshF;
-
-// Tetrahedralized interior
-Eigen::MatrixXd TV;                             // #TV by 3 matrix for vertex positions
-Eigen::MatrixXi TT;                             // #TT by 4 matrix for tet face indices
-Eigen::MatrixXi TF;                             // #TF by 3 matrix for triangle face indices ('f', else `boundary_facets` is called on TT)
-
-// Voronoi diagram
-int gNumPoints = 10;
-vector<Eigen::Vector3d> gPoints;
-
-// TODO: encapsulate class Compound
-vector<vector<Eigen::Vector3d>> gCellVertices;   // Vertices of each Voronoi cell
-vector<vector<vector<int>>> gCellFaces;          // Faces of each Voronoi cell represented by vertex indices
-vector<Eigen::MatrixXi> gCellEdges;              // Edges of each Voronoi cell represented by vertex indices
 
 // GUI
 char gCurrKey = '0';
@@ -62,19 +36,6 @@ Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
 enum MeshOp { Default = 0, Tet, Clip, Weld, Island, OBJ, Pipe};
 static MeshOp gTestMode = Default;
 double gExplodeAmt = 0.1f;
-
-// Mesh operations
-std::vector<MeshConvex> gClippedMeshConvex;     // Global var for testing mesh clipping 
-std::vector<Pattern::spCell> gCells;            // Global var for testing welding 
-std::vector<Compound> gCompounds;               // Global var for testing island detection 
-std::vector<Compound> gCurrCompounds;           // Global var for testing island detection 
-int  gCurrConvex = 0;                           // Global var for testing island detection
-std::vector<spConvex> gFracturedConvex;         // Global var for testing pipeline
-
-// ReadObj testing 
-Compound ginitialConvexes;                      // Global var for testing readOBJ function
-std::string gOBJPath = "..\\assets\\results\\bunny_out.obj";
-
 
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     // Corners of bounding box
@@ -187,132 +148,6 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     viewer.data().set_mesh(CV, CF);
     viewer.data().set_face_based(true);
 #endif
-}
-
-void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
-{
-    points.clear();
-
-// TODO: can look into https://doc.cgal.org/latest/Generator/Generator_2random_points_in_tetrahedral_mesh_3_8cpp-example.html#_a9
-    std::random_device rd;  // Obtain random number from hardware and seed the generator
-    std::mt19937 gen(rd());
-    //std::mt19937 gen(19);
-    std::uniform_real_distribution<> disX(minCorner.x(), maxCorner.x());
-    std::uniform_real_distribution<> disY(minCorner.y(), maxCorner.y());
-    std::uniform_real_distribution<> disZ(minCorner.z(), maxCorner.z());
-
-    for (int i = 0; i < numPoints; ++i) {
-        double x = disX(gen);
-        double y = disY(gen);
-        double z = disZ(gen);
-        points.push_back(Eigen::Vector3d(x, y, z));
-    }
-}
-
-void computeVoronoiCells(
-    const vector<Eigen::Vector3d>& points,
-    const Eigen::Vector3d& minCorner,
-    const Eigen::Vector3d& maxCorner,
-    vector<vector<Eigen::Vector3d>>& cellVertices, // TODO: use Eigen Matrix
-    vector<vector<vector<int>>>& cellFaces, // Each cell's faces by vertex indices
-    vector<Eigen::MatrixXi>& cellEdges // Each cell's edges
-) {
-    // fully clear nested vectors
-    cellVertices.clear();
-    cellFaces.clear();
-    cellEdges.clear();
-
-    // Initialize container
-    voro::container con(
-        minCorner.x(), maxCorner.x(), 
-        minCorner.y(), maxCorner.y(), 
-        minCorner.z(), maxCorner.z(), 
-        6, 6, 6,                // the number of grid blocks the container is divided into for computational efficiency.
-        false, false, false,    // flags setting whether the container is periodic in x/y/z direction
-        8);                     // allocate space for 8 particles in each computational block
-
-    // Add particles to the container
-    for (int i = 0; i < points.size(); i++) {
-        con.put(i, points[i].x(), points[i].y(), points[i].z());
-    }
-
-    // Prepare cell computation
-    voro::c_loop_all cl(con);
-    voro::voronoicell_neighbor c;
-    double x, y, z;
-
-    if (cl.start()) do if (con.compute_cell(c, cl)) {
-        vector<double> cVerts;
-        vector<int> neigh, fVerts;
-
-        cl.pos(x, y, z);
-        c.vertices(x, y, z, cVerts); // returns a vector of triplets (x,y,z)
-        c.face_vertices(fVerts); // returns information about which vertices comprise each face:
-                                 // It is a vector of integers with a specific format: 
-                                 // the first entry is a number k corresponding to the number of vertices
-                                 // making up a face, and this is followed k additional entries 
-                                 // describing which vertices make up this face. 
-                                 // e.g. (3, 16, 20, 13) would correspond to a triangular face linking
-                                 // vertices 16, 20, and 13 together.
-        c.neighbors(neigh); // returns the neighboring particle IDs corresponding to each face
-
-#ifdef DEBUG1
-        cout << "cell verts #: " << cVerts.size() / 3 << endl;
-        for (int i = 0; i < cVerts.size(); i++)
-        {
-            cout << cVerts[i];
-            if (i % 3 == 2)
-            {
-                cout << endl;
-            }
-            else {
-                cout << ", ";
-            }
-        }
-        cout << "\n" << endl;
-#endif
-        // Process vertices
-        vector<Eigen::Vector3d> verts;
-        for (int i = 0; i < cVerts.size(); i += 3) {
-            verts.push_back(Eigen::Vector3d(cVerts[i], cVerts[i + 1], cVerts[i + 2]));
-        }
-
-        // Process cell faces and edges
-        vector<vector<int>> faces; // faces<face vertex indices>
-        vector<Edge> edges;
-        for (int i = 0; i < fVerts.size(); i += fVerts[i] + 1) {
-            int n = fVerts[i]; // Number of vertices for this face
-            vector<int> face;
-
-            for (int k = 1; k <= n; ++k) {
-                face.push_back(fVerts[i + k]);
-
-                // Extract edges
-                int currVertex = fVerts[i + k];
-                int nextVertex = fVerts[i + ((k % n) + 1)];
-                Edge edge(std::min(currVertex, nextVertex), std::max(currVertex, nextVertex));
-
-                if (std::find(edges.begin(), edges.end(), edge) == edges.end()) {
-                    edges.push_back(edge); // Add unique edge
-                }
-            }
-            std::reverse(face.begin(), face.end());
-            faces.push_back(face);
-        }
-
-        cellVertices.push_back(verts);
-        cellFaces.push_back(faces);
-
-        // TODO: move to a helper func
-        // Convert edgesVector to Eigen::MatrixXi for current cell
-        Eigen::MatrixXi edgesMatrix(edges.size(), 2);
-        for (int i = 0; i < edges.size(); ++i) {
-            edgesMatrix(i, 0) = edges[i].first;
-            edgesMatrix(i, 1) = edges[i].second;
-        }
-        cellEdges.push_back(edgesMatrix);
-
-    } while (cl.inc());
 }
 
 // Core script to create splitted meshes 
@@ -758,7 +593,11 @@ int main(int argc, char *argv[])
   maxCorner = V.colwise().maxCoeff();
 
   generateRandomPoints(gNumPoints, gPoints);
-  computeVoronoiCells(gPoints, minCorner, maxCorner, gCellVertices, gCellFaces, gCellEdges);
+  convertEigenToVec(gPoints, gPointsVec);
+  computeVoronoiCells(gPointsVec,
+      vec3(minCorner.x(), minCorner.y(), minCorner.z()),
+      vec3(maxCorner.x(), maxCorner.y(), maxCorner.z()),
+      gCellVertices, gCellFaces, gCellEdges);
 
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
@@ -790,7 +629,11 @@ int main(int argc, char *argv[])
               if (ImGui::InputInt("Num Nodes (for Node Placement)", &gNumPoints))
               {
                   generateRandomPoints(gNumPoints, gPoints);
-                  computeVoronoiCells(gPoints, minCorner, maxCorner, gCellVertices, gCellFaces, gCellEdges);
+                  convertEigenToVec(gPoints, gPointsVec);
+                  computeVoronoiCells(gPointsVec,
+                      vec3(minCorner.x(), minCorner.y(), minCorner.z()),
+                      vec3(maxCorner.x(), maxCorner.y(), maxCorner.z()),
+                      gCellVertices, gCellFaces, gCellEdges);
                   key_down_tet(viewer, gCurrKey, 0);
               }
 
