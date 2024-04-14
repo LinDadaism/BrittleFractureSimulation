@@ -4,18 +4,10 @@
 #pragma once
 #include <iostream>
 
-#include "clipper.h"
 #include "utils.h"
 #include "meshprep.h"
-#include "vec.h"
 
 using namespace std;
-
-typedef std::pair<int, int> Edge;               // Edge represented by pair of vertex indices
-
-typedef vector<vector<Eigen::Vector3d>> VoroVerts;
-typedef vector<vector<vector<int>>>     VoroFaces;
-typedef vector<Eigen::MatrixXi>         VoroEdges;
 
 struct UnitCube {
     vector<Eigen::Vector3d> points{ Eigen::Vector3d(0.0,0.0,0.0),
@@ -62,13 +54,13 @@ vector<Eigen::Vector3d> gPoints;
 vector<vec3> gPointsVec;
 
 // TODO: encapsulate class Compound
-vector<vector<Eigen::Vector3d>> gCellVertices;   // Vertices of each Voronoi cell
-vector<vector<vector<int>>> gCellFaces;          // Faces of each Voronoi cell represented by vertex indices
-vector<Eigen::MatrixXi> gCellEdges;              // Edges of each Voronoi cell represented by vertex indices
+AllCellVertices gCellVertices;   // Vertices of each Voronoi cell
+AllCellFaces gCellFaces;          // Faces of each Voronoi cell represented by vertex indices
+AllCellEdges gCellEdges;              // Edges of each Voronoi cell represented by vertex indices
 
 // Mesh operations
 std::vector<MeshConvex> gClippedMeshConvex;     // Global var for testing mesh clipping 
-std::vector<Pattern::spCell> gCells;            // Global var for testing welding 
+std::vector<spCell> gCells;            // Global var for testing welding 
 std::vector<Compound> gCompounds;               // Global var for testing island detection 
 std::vector<Compound> gCurrCompounds;           // Global var for testing island detection 
 int  gCurrConvex = 0;                           // Global var for testing island detection
@@ -99,121 +91,15 @@ void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
     }
 }
 
-void computeVoronoiCells(
-    const vector<vec3>& points,
-    vec3 minCorner,
-    vec3 maxCorner,
-    vector<vector<Eigen::Vector3d>>& cellVertices, // TODO: use Eigen Matrix
-    vector<vector<vector<int>>>& cellFaces, // Each cell's faces by vertex indices
-    vector<Eigen::MatrixXi>& cellEdges // Each cell's edges
-) {
-    // fully clear nested vectors
-    cellVertices.clear();
-    cellFaces.clear();
-    cellEdges.clear();
-
-    // Initialize container
-    voro::container con(
-        minCorner.x(), maxCorner.x(),
-        minCorner.y(), maxCorner.y(),
-        minCorner.z(), maxCorner.z(),
-        6, 6, 6,                // the number of grid blocks the container is divided into for computational efficiency.
-        false, false, false,    // flags setting whether the container is periodic in x/y/z direction
-        8);                     // allocate space for 8 particles in each computational block
-
-    // Add particles to the container
-    for (int i = 0; i < points.size(); i++) {
-        con.put(i, points[i].x(), points[i].y(), points[i].z());
-    }
-
-    // Prepare cell computation
-    voro::c_loop_all cl(con);
-    voro::voronoicell_neighbor c;
-    double x, y, z;
-
-    if (cl.start()) do if (con.compute_cell(c, cl)) {
-        vector<double> cVerts;
-        vector<int> neigh, fVerts;
-
-        cl.pos(x, y, z);
-        c.vertices(x, y, z, cVerts); // returns a vector of triplets (x,y,z)
-        c.face_vertices(fVerts); // returns information about which vertices comprise each face:
-        // It is a vector of integers with a specific format: 
-        // the first entry is a number k corresponding to the number of vertices
-        // making up a face, and this is followed k additional entries 
-        // describing which vertices make up this face. 
-        // e.g. (3, 16, 20, 13) would correspond to a triangular face linking
-        // vertices 16, 20, and 13 together.
-        c.neighbors(neigh); // returns the neighboring particle IDs corresponding to each face
-
-#ifdef DEBUG1
-        cout << "cell verts #: " << cVerts.size() / 3 << endl;
-        for (int i = 0; i < cVerts.size(); i++)
-        {
-            cout << cVerts[i];
-            if (i % 3 == 2)
-            {
-                cout << endl;
-            }
-            else {
-                cout << ", ";
-            }
-        }
-        cout << "\n" << endl;
-#endif
-        // Process vertices
-        vector<Eigen::Vector3d> verts;
-        for (int i = 0; i < cVerts.size(); i += 3) {
-            verts.push_back(Eigen::Vector3d(cVerts[i], cVerts[i + 1], cVerts[i + 2]));
-        }
-
-        // Process cell faces and edges
-        vector<vector<int>> faces; // faces<face vertex indices>
-        vector<Edge> edges;
-        for (int i = 0; i < fVerts.size(); i += fVerts[i] + 1) {
-            int n = fVerts[i]; // Number of vertices for this face
-            vector<int> face;
-
-            for (int k = 1; k <= n; ++k) {
-                face.push_back(fVerts[i + k]);
-
-                // Extract edges
-                int currVertex = fVerts[i + k];
-                int nextVertex = fVerts[i + ((k % n) + 1)];
-                Edge edge(std::min(currVertex, nextVertex), std::max(currVertex, nextVertex));
-
-                if (std::find(edges.begin(), edges.end(), edge) == edges.end()) {
-                    edges.push_back(edge); // Add unique edge
-                }
-            }
-            std::reverse(face.begin(), face.end());
-            faces.push_back(face);
-        }
-
-        cellVertices.push_back(verts);
-        cellFaces.push_back(faces);
-
-        // TODO: move to a helper func
-        // Convert edgesVector to Eigen::MatrixXi for current cell
-        Eigen::MatrixXi edgesMatrix(edges.size(), 2);
-        for (int i = 0; i < edges.size(); ++i) {
-            edgesMatrix(i, 0) = edges[i].first;
-            edgesMatrix(i, 1) = edges[i].second;
-        }
-        cellEdges.push_back(edgesMatrix);
-
-    } while (cl.inc());
-}
-
 //////////////////////////////////////////////////////////////////////////////////////////
 // TEST MESH CLIPPING
 //////////////////////////////////////////////////////////////////////////////////////////
 
 MeshConvex testFunc2(int cellIndex, 
     const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
-    const VoroVerts& cellVertices,
-    const VoroFaces& cellFaces,
-    const VoroEdges& cellEdges
+    const AllCellVertices& cellVertices,
+    const AllCellFaces& cellFaces,
+    const AllCellEdges& cellEdges
 ) {
     /*std::vector<Eigen::Vector3d> points = { Eigen::Vector3d(0.0,0.0,0.0),
                                             Eigen::Vector3d(0.0,0.0,1.0),
@@ -260,9 +146,9 @@ MeshConvex testFunc2(int cellIndex,
 
 // Compute every clipped convex in a voronoi cell 
 MeshConvex testFunc3(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
-    const VoroVerts& cellVertices,
-    const VoroFaces& cellFaces,
-    const VoroEdges& cellEdges
+    const AllCellVertices& cellVertices,
+    const AllCellFaces& cellFaces,
+    const AllCellEdges& cellEdges
 ) {
     // Convert format from V,F matrices
     std::vector<Eigen::Vector3d> points;
@@ -326,10 +212,10 @@ void pre_test_welding(Eigen::MatrixXd& V, Eigen::MatrixXi& F) {
 //Functional calls to test welding mechanism, it manually creates 8 smaller 
 //individual cubes forming a single large cube.
 void testWelding(std::vector<MeshConvex>& clippedMeshConvex,
-    const VoroVerts& cellVertices,
-    const VoroFaces& cellFaces,
-    const VoroEdges& cellEdges,
-    std::vector<Pattern::spCell>& gCells
+    const AllCellVertices& cellVertices,
+    const AllCellFaces& cellFaces,
+    const AllCellEdges& cellEdges,
+    std::vector<spCell>& gCells
 ) {
     UnitCube cube;
 
@@ -402,9 +288,9 @@ void testHashing() {
 //////////////////////////////////////////////////////////////////////////////////////////
 
 void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
-    const VoroVerts& cellVertices,
-    const VoroFaces& cellFaces,
-    const VoroEdges& cellEdges,
+    const AllCellVertices& cellVertices,
+    const AllCellFaces& cellFaces,
+    const AllCellEdges& cellEdges,
     std::vector<Compound>& gCompounds,
     bool isCustomMesh = false
 ) { 
@@ -483,33 +369,5 @@ void testPipeline(const std::string& filePath,
     }
     Compound original{convexes, centroid};
     
-    splitted = fracturePipeline(original, pattern);
-}
-
-////////////////////////////////////////////////////////////////////
-///  APIs Exposed to Maya Plugin
-////////////////////////////////////////////////////////////////////
-
-// Using auto-generated voro fracture pattern from the backend
-void genFractureUniform(const std::vector<vec3>& nodes, 
-    vec3 minPoint, vec3 maxPoint,
-    const std::string& filePath, 
-    std::vector<Compound>& splitted) {
-    
-    vector<vector<Eigen::Vector3d>> cellVertices;   // Vertices of each Voronoi cell
-    vector<vector<vector<int>>> cellFaces;          // Faces of each Voronoi cell represented by vertex indices
-    vector<Eigen::MatrixXi> cellEdges;              // Edges of each Voronoi cell represented by vertex indices
-    computeVoronoiCells(nodes, minPoint, maxPoint, cellVertices, cellFaces, cellEdges);
-    
-    Pattern pattern(cellVertices, cellFaces, cellEdges);
-    pattern.createCellsfromVoro();
-    
-    auto convexes = readOBJByComponents(filePath);
-
-    // Using weighted sum to approximate compound's CoM
-    // Some of the original convex hulls might be overlapping so this is just an approximate.
-    Eigen::Vector3d centroid = calculateCentroidCompound(convexes);
-    Compound original{ convexes, centroid };
-
     splitted = fracturePipeline(original, pattern);
 }

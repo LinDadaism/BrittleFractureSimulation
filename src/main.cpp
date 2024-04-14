@@ -2,7 +2,6 @@
 #include <vector>
 #include <random>
 
-#include "voro++.hh"
 #include <igl/opengl/glfw/Viewer.h>
 
 #include <igl/opengl/glfw/imgui/ImGuiPlugin.h>
@@ -18,8 +17,6 @@
 
 #include <chrono>
 
-#include "clipper.h"
-#include "utils.h"
 #include "tests.h"
 
 
