@@ -6,6 +6,7 @@
 #include <Windows.h>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#include "vec.h"
 
 /////////////////////////////////////////////////////////////
 ///             Matrix - Array Conversions                 //
@@ -73,6 +74,13 @@ void convertToVertArray(const Eigen::MatrixXd& vertMatrix, std::vector<Eigen::Ve
     for (int i = 0; i < vertMatrix.rows(); ++i) {
         Eigen::Vector3d vertex = vertMatrix.row(i);
         vertVector.push_back(vertex);
+    }
+}
+
+void convertEigenToVec(const std::vector<Eigen::Vector3d>& eigenArr, std::vector<vec3>& vecArr) {
+    vecArr.clear();
+    for (const auto& eigenVec : eigenArr) {
+        vecArr.push_back(vec3(eigenVec.x(), eigenVec.y(), eigenVec.z()));
     }
 }
 
