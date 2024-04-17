@@ -37,22 +37,6 @@ enum MeshOp { Default = 0, Tet, Clip, Weld, Island, OBJ, Pipe};
 static MeshOp gTestMode = Default;
 double gExplodeAmt = 0.1f;
 
-
-// Mesh operations
-std::vector<MeshConvex> gClippedMeshConvex;     // Global var for testing mesh clipping 
-std::vector<Pattern::spCell> gCells;            // Global var for testing welding 
-std::vector<Compound> gCompounds;               // Global var for testing island detection 
-std::vector<Compound> gCurrCompounds;           // Global var for testing island detection 
-int  gCurrConvex = 0;                           // Global var for testing island detection
-std::vector<spConvex> gFracturedConvex;         // Global var for testing pipeline
-
-// ReadObj testing 
-Compound ginitialConvexes;                      // Global var for testing readOBJ function
-std::string gOBJPath = "..\\assets\\results\\bunny_full.obj";
-//std::string gOBJPath = "..\\assets\\results\\homer_out.obj";
-
-
-
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     // Corners of bounding box
     Eigen::MatrixXd V_box(8, 3);
@@ -164,27 +148,6 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     viewer.data().set_mesh(CV, CF);
     viewer.data().set_face_based(true);
 #endif
-}
-
-
-void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
-{
-    points.clear();
-
-// TODO: can look into https://doc.cgal.org/latest/Generator/Generator_2random_points_in_tetrahedral_mesh_3_8cpp-example.html#_a9
-    std::random_device rd;  // Obtain random number from hardware and seed the generator
-    //std::mt19937 gen(rd());
-    std::mt19937 gen(19);
-    std::uniform_real_distribution<> disX(minCorner.x(), maxCorner.x());
-    std::uniform_real_distribution<> disY(minCorner.y(), maxCorner.y());
-    std::uniform_real_distribution<> disZ(minCorner.z(), maxCorner.z());
-
-    for (int i = 0; i < numPoints; ++i) {
-        double x = disX(gen);
-        double y = disY(gen);
-        double z = disZ(gen);
-        points.push_back(Eigen::Vector3d(x, y, z));
-    }
 }
 
 void computeVoronoiCells(
@@ -704,8 +667,8 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = "../assets/obj/bunny.obj";//*"../assets/obj/cube.obj"; *//*".. /assets/bunny.off";*/ // "../assets/Armadillo.ply";
-    //string filePath = "../assets/obj/homer.obj";
+    //string filePath = "../assets/obj/bunny.obj";//*"../assets/obj/cube.obj"; *//*".. /assets/bunny.off";*/ // "../assets/Armadillo.ply";
+    string filePath = "../assets/obj/homer.obj";
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      

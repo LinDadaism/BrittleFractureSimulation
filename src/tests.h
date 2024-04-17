@@ -76,7 +76,8 @@ std::vector<spConvex> gFracturedConvex;         // Global var for testing pipeli
 
 // ReadObj testing 
 Compound ginitialConvexes;                      // Global var for testing readOBJ function
-std::string gOBJPath = "..\\assets\\results\\bunny_out.obj";
+//std::string gOBJPath = "..\\assets\\results\\bunny_full.obj";
+std::string gOBJPath = "..\\assets\\results\\homer_out.obj";
 
 
 void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
