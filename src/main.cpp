@@ -23,37 +23,11 @@
 #include "tests.h"
 
 
-typedef std::pair<int, int> Edge;               // Edge represented by pair of vertex indices
-
 using namespace std;
 
 #define DEBUG       0
 #define DEBUG_VORO  0
 #define COCAD       0
-
-// Input polygon
-Eigen::MatrixXd V;                              // #V by 3 matrix for vertices
-Eigen::MatrixXi F;                              // matrix for face indices
-Eigen::MatrixXd B;                              // matrix for barycenters
-Eigen::MatrixXd N;                              // matrix for normals
-Eigen::Vector3d minCorner, maxCorner;           // min and max corners of mesh's bounding box
-
-Eigen::MatrixXd meshV;
-Eigen::MatrixXi meshF;
-
-// Tetrahedralized interior
-Eigen::MatrixXd TV;                             // #TV by 3 matrix for vertex positions
-Eigen::MatrixXi TT;                             // #TT by 4 matrix for tet face indices
-Eigen::MatrixXi TF;                             // #TF by 3 matrix for triangle face indices ('f', else `boundary_facets` is called on TT)
-
-// Voronoi diagram
-int gNumPoints = 10;
-vector<Eigen::Vector3d> gPoints;
-
-// TODO: encapsulate class Compound
-vector<vector<Eigen::Vector3d>> gCellVertices;   // Vertices of each Voronoi cell
-vector<vector<vector<int>>> gCellFaces;          // Faces of each Voronoi cell represented by vertex indices
-vector<Eigen::MatrixXi> gCellEdges;              // Edges of each Voronoi cell represented by vertex indices
 
 // GUI
 char gCurrKey = '0';
@@ -62,6 +36,7 @@ Eigen::IOFormat CleanFmt(4, 0, ", ", "\n", "[", "]");
 enum MeshOp { Default = 0, Tet, Clip, Weld, Island, OBJ, Pipe};
 static MeshOp gTestMode = Default;
 double gExplodeAmt = 0.1f;
+
 
 // Mesh operations
 std::vector<MeshConvex> gClippedMeshConvex;     // Global var for testing mesh clipping 
@@ -75,6 +50,7 @@ std::vector<spConvex> gFracturedConvex;         // Global var for testing pipeli
 Compound ginitialConvexes;                      // Global var for testing readOBJ function
 std::string gOBJPath = "..\\assets\\results\\bunny_full.obj";
 //std::string gOBJPath = "..\\assets\\results\\homer_out.obj";
+
 
 
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
@@ -189,6 +165,7 @@ void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
     viewer.data().set_face_based(true);
 #endif
 }
+
 
 void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
 {
@@ -315,6 +292,7 @@ void computeVoronoiCells(
 
     } while (cl.inc());
 }
+
 
 // Core script to create splitted meshes 
 // Needed data: V,F matrices of the whole mesh 
@@ -760,7 +738,11 @@ int main(int argc, char *argv[])
   maxCorner = V.colwise().maxCoeff();
 
   generateRandomPoints(gNumPoints, gPoints);
-  computeVoronoiCells(gPoints, minCorner, maxCorner, gCellVertices, gCellFaces, gCellEdges);
+  convertEigenToVec(gPoints, gPointsVec);
+  computeVoronoiCells(gPointsVec,
+      vec3(minCorner.x(), minCorner.y(), minCorner.z()),
+      vec3(maxCorner.x(), maxCorner.y(), maxCorner.z()),
+      gCellVertices, gCellFaces, gCellEdges);
 
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
@@ -792,7 +774,11 @@ int main(int argc, char *argv[])
               if (ImGui::InputInt("Num Nodes (for Node Placement)", &gNumPoints))
               {
                   generateRandomPoints(gNumPoints, gPoints);
-                  computeVoronoiCells(gPoints, minCorner, maxCorner, gCellVertices, gCellFaces, gCellEdges);
+                  convertEigenToVec(gPoints, gPointsVec);
+                  computeVoronoiCells(gPointsVec,
+                      vec3(minCorner.x(), minCorner.y(), minCorner.z()),
+                      vec3(maxCorner.x(), maxCorner.y(), maxCorner.z()),
+                      gCellVertices, gCellFaces, gCellEdges);
                   key_down_tet(viewer, gCurrKey, 0);
               }
 
