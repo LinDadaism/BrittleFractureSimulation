@@ -18,6 +18,8 @@
 #include <CGAL/Rigid_triangle_mesh_collision_detection.h>
 #include <CGAL/Convex_hull_3/dual/halfspace_intersection_3.h>
 #include <CGAL/Convex_hull_3/dual/halfspace_intersection_with_constructions_3.h>
+#include <CGAL/Polytope_distance_d.h>
+#include <CGAL/Polytope_distance_d_traits_3.h>
 #include <vector>
 #include <thread>
 #include <queue>
@@ -35,6 +37,10 @@ typedef K::Plane_3                                           Plane_3;
 typedef CGAL::Surface_mesh<Point_3>                          Surface_mesh;
 typedef Surface_mesh::Vertex_index                           Vertex_descriptor;
 typedef Surface_mesh::Face_index                             Face_descriptor;
+#include <CGAL/Gmpzf.h>
+typedef CGAL::Gmpzf ET;
+typedef CGAL::Polytope_distance_d_traits_3<K, ET, double>    Traits;
+typedef CGAL::Polytope_distance_d<Traits>                    Polytope_distance;
 typedef CGAL::Rigid_triangle_mesh_collision_detection<Surface_mesh> ABtree;
 namespace PMP = CGAL::Polygon_mesh_processing;
 extern std::mutex patternMutex;             // global mutex for simplicity

@@ -7,6 +7,7 @@
     #define CGAL_HAS_THREADS
     #define BOOST_HAS_THREADS
 #endif
+#define INTERSECT_DISTANCE 1e-5
 std::mutex patternMutex;
 Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
 {}
@@ -329,7 +330,7 @@ Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vecto
     return Eigen::Vector4d(A, B, C, D);
 }
 
-// island detection using intersection 
+//island detection using intersection 
 std::vector<Compound> islandDetection(Compound& old_compound) {
     int N = old_compound.convexes.size();
     ABtree tree;
@@ -370,10 +371,81 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
     
     return results;
 }
+//////////////////////////////////////////////////////////////////////////////
+// The alternative island detection algorithm that use the distance between 
+// each convexes which is much slower 
+//std::vector<Compound> islandDetection(Compound& old_compound) {
+//    int N = old_compound.convexes.size();
+//    std::vector<Compound> results;
+//    std::unordered_set<int> cur_convs;
+//    std::unordered_set<int> final_convs;
+//    for (int l = 0; l < N; ++l) final_convs.insert(l);
+//    for (int i = 0; i < N; ++i) {
+//        if (cur_convs == final_convs) break;
+//        if (cur_convs.find(i) != cur_convs.end()) continue;
+//        std::unordered_set<int> searched{};
+//        std::queue<int> q;
+//        searched.insert(i);
+//        q.push(i);
+//        while (!q.empty()) {
+//            int current = q.front();
+//            q.pop();
+//            std::unordered_set<int> intersected;
+//            for (int k = 0; k < N; ++k) {
+//                if (current != k
+//                    && searched.find(k) == searched.end()
+//                    && cur_convs.find(k) == cur_convs.end()) {
+//                    std::vector<Point_3> P;
+//                    std::vector<Point_3> Q;
+//                    auto sm_P = old_compound.convexes[current]->convexMesh;
+//                    auto sm_Q = old_compound.convexes[k]->convexMesh;
+//                    for (auto& v : sm_P.vertices()) P.push_back(sm_P.point(v));
+//                    for (auto& v : sm_Q.vertices()) Q.push_back(sm_Q.point(v));
+//                    Polytope_distance pd(P.begin(), P.end(), Q.begin(), Q.end());
+//                    double sd = CGAL::to_double(pd.squared_distance_numerator()) /
+//                        CGAL::to_double(pd.squared_distance_denominator()); 
+//                    if (sd < INTERSECT_DISTANCE) intersected.insert(k);
+//                }
+//            }
+//            for (auto& inter : intersected) {
+//                // not found
+//                if (searched.find(inter) == searched.end()) {
+//                    searched.insert(inter);
+//                    q.push(inter);
+//                }
+//            }
+//        }
+//        std::vector<std::shared_ptr<MeshConvex>> new_convexes;
+//        for (auto& s : searched) {
+//            new_convexes.push_back(old_compound.convexes[s]);
+//            cur_convs.insert(s);
+//        }
+//        results.push_back(Compound{ new_convexes });
+//    }
+//
+//    return results;
+//}
+
 
 
 // The core fracture algorihm pipeline  
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
+    // scale up each convex a little bit for intersection 
+    // critical for island detection!!!!
+    for (auto& c : compound.convexes) {
+        for (size_t i = 0; i < c->vertices.size(); i++) {
+            for (size_t i = 0; i < c->vertices.size(); i++) {
+                c->vertices[i] += -c->centroid;
+            }
+            c->vertices[i] *= 1.01; // might need to be adjust for different mesh
+            for (size_t i = 0; i < c->vertices.size(); i++) {
+                c->vertices[i] += c->centroid;
+            }
+        }
+        Surface_mesh newmesh; 
+        buildSMfromVF(c->vertices, c->faces, newmesh);
+        c->convexMesh = newmesh;
+    }
     //TODO: alignmnet First Step: Alignment
     
     //Second Step: Intersection 

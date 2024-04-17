@@ -73,7 +73,8 @@ std::vector<spConvex> gFracturedConvex;         // Global var for testing pipeli
 
 // ReadObj testing 
 Compound ginitialConvexes;                      // Global var for testing readOBJ function
-std::string gOBJPath = "..\\assets\\results\\bunny_out.obj";
+std::string gOBJPath = "..\\assets\\results\\bunny_full.obj";
+//std::string gOBJPath = "..\\assets\\results\\homer_out.obj";
 
 
 void drawDebugVisuals(igl::opengl::glfw::Viewer& viewer) {
@@ -195,8 +196,8 @@ void generateRandomPoints(int numPoints, std::vector<Eigen::Vector3d>& points)
 
 // TODO: can look into https://doc.cgal.org/latest/Generator/Generator_2random_points_in_tetrahedral_mesh_3_8cpp-example.html#_a9
     std::random_device rd;  // Obtain random number from hardware and seed the generator
-    std::mt19937 gen(rd());
-    //std::mt19937 gen(19);
+    //std::mt19937 gen(rd());
+    std::mt19937 gen(19);
     std::uniform_real_distribution<> disX(minCorner.x(), maxCorner.x());
     std::uniform_real_distribution<> disY(minCorner.y(), maxCorner.y());
     std::uniform_real_distribution<> disZ(minCorner.z(), maxCorner.z());
@@ -725,7 +726,8 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////////////////////////
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
-    string filePath = /*"../assets/obj/bunny.obj";*/"../assets/obj/cube.obj"; /*".. /assets/bunny.off";*/ // "../assets/Armadillo.ply";
+    string filePath = "../assets/obj/bunny.obj";//*"../assets/obj/cube.obj"; *//*".. /assets/bunny.off";*/ // "../assets/Armadillo.ply";
+    //string filePath = "../assets/obj/homer.obj";
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      
@@ -738,7 +740,7 @@ int main(int argc, char *argv[])
 #if COCAD
   // run CoACD executable to decompose surface mesh into convex hulls
   LPCSTR applicationName = "..\\coacd.exe";
-  char commandLine[] = "-i ..\\assets\\obj\\cube.obj -o ..\\assets\\results\\cube_out.obj -ro ..\\assets\\results\\cube_remesh.obj";
+  char commandLine[] = "-i ..\\assets\\obj\\homer.obj -o ..\\assets\\results\\homer_out.obj -ro ..\\assets\\results\\remesh.obj";
   if (executeCommand(applicationName, commandLine))
   {
       cout << "CoACD executed successfully!" << endl;
