@@ -50,7 +50,15 @@ Eigen::MatrixXi TF;                             // #TF by 3 matrix for triangle 
 
 // Voronoi diagram
 int gNumPoints = 10;
-vector<Eigen::Vector3d> gPoints =               // cell nodes
+
+#if VORO_LIB
+vector<Eigen::Vector3d> gPoints;                 // cell nodes
+vector<vector<Eigen::Vector3d>> gCellVertices;   // Vertices of each Voronoi cell
+vector<vector<vector<int>>> gCellFaces;          // Faces of each Voronoi cell represented by vertex indices
+vector<Eigen::MatrixXi> gCellEdges;              // Edges of each Voronoi cell represented by vertex indices
+#else
+// hard-coded 10 Voronoi cells for now
+vector<Eigen::Vector3d> gPoints =               
 {
   Eigen::Vector3d(-0.0695318, -0.0872571, 0.215309),
   Eigen::Vector3d(-0.242122, 0.175633, -0.459787),
@@ -63,10 +71,8 @@ vector<Eigen::Vector3d> gPoints =               // cell nodes
   Eigen::Vector3d(-0.356605, 0.474539, -0.167495),
   Eigen::Vector3d(0.410755, 0.111101, 0.279034)
 };
-vector<vec3> gPointsVec;
 
-// hard-coded 10 Voronoi cells for now
-AllCellVertices gCellVertices =   // Vertices of each Voronoi cell
+AllCellVertices gCellVertices =
 {
   {
       Eigen::Vector3d(-0.5, -0.5, -0.5),
@@ -223,7 +229,8 @@ AllCellVertices gCellVertices =   // Vertices of each Voronoi cell
       Eigen::Vector3d(-0.324052, -0.114024, 0.5)
   }
 };
-AllCellFaces gCellFaces =           // Faces of each Voronoi cell represented by vertex indices
+
+AllCellFaces gCellFaces =
 {
   {
       {5, 16, 15, 1},
@@ -334,7 +341,7 @@ AllCellFaces gCellFaces =           // Faces of each Voronoi cell represented by
   }
 };
 // TODO: vert indices order below is incorrect, but since we're not using this info, just leave it here to avoid visualization error. 
-AllCellEdges gCellEdges =              // Edges of each Voronoi cell represented by vertex indices
+AllCellEdges gCellEdges =
 {
   (Eigen::MatrixXi(30, 2) << 1, 15, 5, 1, 1, 4, 3, 3, 12, 12, 14, 5, 9, 4, 2, 7, 8, 2, 0, 0, 18, 12, 6, 6, 0, 3, 16, 11, 17, 14, 15, 16, 16, 5, 4, 7, 7, 13, 13, 14, 15, 11, 11, 9, 10, 10, 9, 8, 2, 18, 19, 19, 13, 10, 8, 6, 17, 17, 18, 19).finished(),
   (Eigen::MatrixXi(15, 2) << 1, 4, 6, 7, 1, 1, 4, 7, 0, 0, 3, 0, 8, 2, 2, 4, 6, 9, 9, 7, 5, 5, 8, 8, 3, 5, 2, 9, 6, 3).finished(),
@@ -347,6 +354,9 @@ AllCellEdges gCellEdges =              // Edges of each Voronoi cell represented
   (Eigen::MatrixXi(24, 2) << 1, 3, 1, 1, 5, 6, 6, 10, 12, 3, 0, 0, 2, 8, 8, 2, 2, 0, 4, 9, 9, 14, 4, 8, 13, 13, 3, 5, 7, 7, 10, 12, 13, 14, 14, 5, 11, 11, 10, 6, 7, 4, 11, 12, 15, 15, 15, 9).finished(),
   (Eigen::MatrixXi(9, 2) << 1, 4, 2, 1, 1, 3, 0, 0, 0, 5, 5, 4, 2, 3, 5, 2, 3, 4).finished()
 };
+#endif
+
+vector<vec3> gPointsVec;
 
 // Mesh operations
 std::vector<MeshConvex> gClippedMeshConvex;     // Global var for testing mesh clipping 
