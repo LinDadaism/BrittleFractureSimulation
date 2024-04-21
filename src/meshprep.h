@@ -5,7 +5,8 @@
 #include <stdexcept>
 #include "clipper.h"
 
-// Hard-coded 10 Voronoi cells as fracture pattern for now
+#if !VORO_LIB
+// Hard-coded 10 Voronoi cells as fracture pattern for Maya Plugin
 const static AllCellVertices gCellVertices10   // Vertices of each Voronoi cell
 {
   {
@@ -287,6 +288,6 @@ const static AllCellEdges gCellEdges10              // Edges of each Voronoi cel
   (Eigen::MatrixXi(24, 2) << 1, 3, 1, 1, 5, 6, 6, 10, 12, 3, 0, 0, 2, 8, 8, 2, 2, 0, 4, 9, 9, 14, 4, 8, 13, 13, 3, 5, 7, 7, 10, 12, 13, 14, 14, 5, 11, 11, 10, 6, 7, 4, 11, 12, 15, 15, 15, 9).finished(),
   (Eigen::MatrixXi(9, 2) << 1, 4, 2, 1, 1, 3, 0, 0, 0, 5, 5, 4, 2, 3, 5, 2, 3, 4).finished()
 };
-
+#endif
 
 std::vector<spConvex> readOBJByComponents(const std::string& filePath);
