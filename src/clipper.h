@@ -29,8 +29,13 @@
 #include <unordered_set>
 #include <unordered_map>
 
-//#include "voro++.hh"
 #include "vec.h"
+
+#define VORO_LIB 0
+#if VORO_LIB
+    #include "voro++.hh"
+#endif
+
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef CGAL::Polyhedron_3<K>                                Polyhedron_3;
@@ -148,7 +153,7 @@ std::vector<Compound> islandDetection(Compound& old_compound);
 // pipeline of fracture algorithm 
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern); 
 
-/*
+#if VORO_LIB
 void computeVoronoiCells(
     const vector<vec3>& points,
     vec3 minCorner,
@@ -157,4 +162,4 @@ void computeVoronoiCells(
     AllCellFaces& cellFaces,        // Each cell's faces by vertex indices
     AllCellEdges& cellEdges         // Each cell's edges
 );
-*/
+#endif

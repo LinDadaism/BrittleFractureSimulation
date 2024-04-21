@@ -492,8 +492,7 @@ std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
     return fractured;
 }
 
-/* 
-// hard-coded pattern for now
+#if VORO_LIB
 void computeVoronoiCells(
     const std::vector<vec3>& points,
     vec3 minCorner,
@@ -599,4 +598,4 @@ void computeVoronoiCells(
 
     } while (cl.inc());
 }
-*/
+#endif
