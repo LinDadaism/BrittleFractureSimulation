@@ -26,6 +26,10 @@ AllCellFaces Pattern::getFaces() {
     return o_cellFaces;
 }
 
+int Pattern::numCells() {
+    return cells.size();
+}
+
 void Pattern::setVertices(const AllCellVertices& verts) {
     for (int i = 0; i < verts.size(); i++) {
         auto& cell = verts[i];
@@ -53,7 +57,7 @@ void Pattern::createCellsfromVoro() {
         auto curCell = o_cellFaces[i];
         Surface_mesh sm; 
         buildSMfromVF(o_cellVertices[i], o_cellFaces[i], sm);
-        spCell cellptr(new Cell{i, std::vector<spConvex>{}, o_cellVertices[i], o_cellFaces[i], sm });
+        spCell cellptr(new Cell{ i, std::vector<spConvex>{}, o_cellVertices[i], o_cellFaces[i], sm });
         cells.push_back(cellptr);
     }
 }
@@ -416,6 +420,8 @@ std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
     return fractured;
 }
 
+/* 
+// hard-coded pattern for now
 void computeVoronoiCells(
     const std::vector<vec3>& points,
     vec3 minCorner,
@@ -521,3 +527,4 @@ void computeVoronoiCells(
 
     } while (cl.inc());
 }
+*/

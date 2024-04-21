@@ -12,6 +12,7 @@ public:
 
     std::string getInputFilepath();
     std::vector<Compound> getFractureShards();
+    int numPatternCells();
 
     void setInputFilepath(std::string filepath);
 
