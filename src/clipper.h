@@ -29,6 +29,9 @@
 #include <unordered_set>
 #include <unordered_map>
 
+//#include "voro++.hh"
+#include "vec.h"
+
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
 typedef CGAL::Polyhedron_3<K>                                Polyhedron_3;
 typedef K::Point_3                                           Point_3;
@@ -73,21 +76,28 @@ struct Compound {
 };
 typedef std::shared_ptr<Compound>                           spCompound;
 
-class Pattern 
+// Voronoi pattern typedefs
+typedef std::vector<std::vector<Eigen::Vector3d>>  AllCellVertices;
+typedef std::vector<std::vector<std::vector<int>>> AllCellFaces;
+typedef std::vector<Eigen::MatrixXi>               AllCellEdges;
+typedef std::pair<int, int>                        Edge;               // Edge represented by pair of vertex indices
+typedef std::shared_ptr<Cell>                      spCell;
+
+class Pattern
 {
 public:
-    typedef std::vector<std::vector<Eigen::Vector3d>>  AllCellVertices;
-    typedef std::vector<std::vector<std::vector<int>>> AllCellFaces;
-    typedef std::vector<Eigen::MatrixXi>               AllCellEdges;
-    typedef std::shared_ptr<Cell>                      spCell;
-
+    Pattern();
     Pattern(AllCellVertices, AllCellFaces, AllCellEdges);
     ~Pattern() {};
 
     void createCellsfromVoro();
     std::vector<spCell> getCells();
-    AllCellVertices getVertices(); 
-    AllCellFaces getFaces(); 
+    AllCellVertices getVertices();
+    AllCellFaces getFaces();
+    int numCells();
+
+    void setVertices(const AllCellVertices& verts);
+    void setFaces(const AllCellFaces& faces);
 
 private:
     // original data outputed from Voronoi function of libigl
@@ -137,3 +147,14 @@ std::vector<Compound> islandDetection(Compound& old_compound);
 
 // pipeline of fracture algorithm 
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern); 
+
+/*
+void computeVoronoiCells(
+    const vector<vec3>& points,
+    vec3 minCorner,
+    vec3 maxCorner,
+    AllCellVertices& cellVertices,  // TODO: use Eigen Matrix
+    AllCellFaces& cellFaces,        // Each cell's faces by vertex indices
+    AllCellEdges& cellEdges         // Each cell's edges
+);
+*/

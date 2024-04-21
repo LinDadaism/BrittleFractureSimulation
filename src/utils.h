@@ -172,3 +172,61 @@ bool executeCommand(LPCTSTR lpApplicationName, LPSTR lpCommand)
 
     return true;
 }
+
+void printPattern(vector<Eigen::Vector3d>& gPoints,
+    std::vector<std::vector<Eigen::Vector3d>>& gCellVertices,
+    std::vector<std::vector<std::vector<int>>>& gCellFaces,
+    std::vector<Eigen::MatrixXi>& gCellEdges)
+{
+    // gPoints
+    std::cout << "cellNodes:\n{" << std::endl;
+    for (const auto& p : gPoints) {
+        std::cout << "  Eigen::Vector3d(" << p.x() << ", " << p.y() << ", " << p.z() << ")," << std::endl;
+    }
+    std::cout << "}\n" << std::endl;
+
+    // gCellVertices
+    std::cout << "cellVerts:\n{" << std::endl;
+    for (const auto& cell : gCellVertices) {
+        std::cout << "  {" << std::endl;
+        for (const auto& vert : cell) {
+            std::cout << "      Eigen::Vector3d(" << vert.x() << ", " << vert.y() << ", " << vert.z() << ")," << std::endl;
+        }
+        std::cout << "  }," << std::endl;
+    }
+    std::cout << "}\n" << std::endl;
+
+    // gCellFaces
+    std::cout << "cellFaces:\n{" << std::endl;
+    for (const auto& face : gCellFaces) {
+        std::cout << "  {" << std::endl;
+        for (const auto& vertIds : face) {
+            std::cout << "      {";
+            for (int i = 0; i < vertIds.size(); i++) {
+                if (i == vertIds.size() - 1) {
+                    std::cout << vertIds[i];
+                    break;
+                }
+                std::cout << vertIds[i] << ", ";
+            }
+            std::cout << "}," << std::endl;
+        }
+        std::cout << "  }," << std::endl;
+    }
+    std::cout << "}\n" << std::endl;
+
+    // gCellEdges
+    std::cout << "cellEdges:\n{" << std::endl;
+    for (const auto& cell : gCellEdges) {
+        int numRows = static_cast<int>(cell.rows());
+        std::cout << "  (Eigen::MatrixXi(" << numRows << ", 2) << ";
+        for (int i = 0; i < cell.size(); i++) {
+            if (i == cell.size() - 1) {
+                std::cout << cell(i) << ").finished()," << std::endl;
+                break;
+            }
+            std::cout << cell(i) << ", ";
+        }
+    }
+    std::cout << "}\n" << std::endl;
+}

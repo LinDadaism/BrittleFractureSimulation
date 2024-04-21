@@ -31,12 +31,10 @@ igl_include(copyleft tetgen)
 #igl_include(restricted triangle)
 
 # Add your project files
-file(GLOB SRC_FILES
-		    src/vec.cpp src/vec.h
-	 	    src/clipper.cpp src/clipper.h
-		    src/meshprep.cpp src/meshprep.h
-        src/utils.h
-        src/tests.h)
+file(GLOB_RECURSE BFX_SOURCE_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/*)
+list(REMOVE_ITEM BFX_SOURCE_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
+
+file(GLOB SRC_FILES ${BFX_SOURCE_SRCS})
 add_library(${PROJECT_NAME} STATIC ${SRC_FILES})
 
 # Link igl (and the glfw module) to your project
@@ -63,14 +61,14 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 # Voro++
 # ==============================================================================
 # List of headers locations
-include_directories("voro/include")
+# include_directories("voro/include")
 
-# List of cpu sources
-file(GLOB_RECURSE host_sources voro/src/*.cc)
+# # List of cpu sources
+# file(GLOB_RECURSE host_sources voro/src/*.cc)
 
-add_library(voro++ STATIC ${host_sources})
+# add_library(voro++ STATIC ${host_sources})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE voro++)
+# target_link_libraries(${PROJECT_NAME} PUBLIC voro++)
 
 # ==============================================================================
 # CGAL

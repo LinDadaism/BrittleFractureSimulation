@@ -2,7 +2,6 @@
 #include <vector>
 #include <random>
 
-#include "voro++.hh"
 #include <igl/opengl/glfw/Viewer.h>
 
 #include <igl/opengl/glfw/imgui/ImGuiPlugin.h>
@@ -18,8 +17,6 @@
 
 #include <chrono>
 
-#include "clipper.h"
-#include "utils.h"
 #include "tests.h"
 
 
@@ -700,12 +697,15 @@ int main(int argc, char *argv[])
   minCorner = V.colwise().minCoeff();
   maxCorner = V.colwise().maxCoeff();
 
+  /*
+  // hard-coded pattern for now
   generateRandomPoints(gNumPoints, gPoints);
   convertEigenToVec(gPoints, gPointsVec);
   computeVoronoiCells(gPointsVec,
       vec3(minCorner.x(), minCorner.y(), minCorner.z()),
       vec3(maxCorner.x(), maxCorner.y(), maxCorner.z()),
       gCellVertices, gCellFaces, gCellEdges);
+  */
 
   /////////////////////////////////////////////////////////////////////////
   //                               GUI                                   //
@@ -736,12 +736,12 @@ int main(int argc, char *argv[])
               // We can also use a std::vector<std::string> defined dynamically
               if (ImGui::InputInt("Num Nodes (for Node Placement)", &gNumPoints))
               {
-                  generateRandomPoints(gNumPoints, gPoints);
+                  /*generateRandomPoints(gNumPoints, gPoints);
                   convertEigenToVec(gPoints, gPointsVec);
                   computeVoronoiCells(gPointsVec,
                       vec3(minCorner.x(), minCorner.y(), minCorner.z()),
                       vec3(maxCorner.x(), maxCorner.y(), maxCorner.z()),
-                      gCellVertices, gCellFaces, gCellEdges);
+                      gCellVertices, gCellFaces, gCellEdges);*/
                   key_down_tet(viewer, gCurrKey, 0);
               }
 
