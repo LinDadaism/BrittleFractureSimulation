@@ -31,7 +31,7 @@
 
 #include "vec.h"
 
-#define VORO_LIB 0
+#define VORO_LIB 1
 #if VORO_LIB
     #include "voro++.hh"
 #endif
