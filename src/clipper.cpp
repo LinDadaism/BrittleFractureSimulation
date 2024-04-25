@@ -32,23 +32,36 @@ int Pattern::numCells() {
 }
 
 void Pattern::setVertices(const AllCellVertices& verts) {
+    o_cellVertices.clear();
+
     for (int i = 0; i < verts.size(); i++) {
         auto& cell = verts[i];
+
+        std::vector<Eigen::Vector3d> cellVerts;
         for (int j = 0; j < cell.size(); j++) {
-            o_cellVertices[i][j] = cell[j];
+            cellVerts.push_back(cell[j]);
         }
+        o_cellVertices.push_back(cellVerts);
     }
 }
 
 void Pattern::setFaces(const AllCellFaces& faces) {
+    o_cellFaces.clear();
+
     for (int i = 0; i < faces.size(); i++) {
         auto& cell = faces[i];
+
+        std::vector<std::vector<int>> cellVertIds;
         for (int j = 0; j < cell.size(); j++) {
             auto& face = cell[j];
+
+            std::vector<int> faceVertIds;
             for (int k = 0; k < face.size(); k++) {
-                o_cellFaces[i][j][k] = face[k];
+                faceVertIds.push_back(face[k]);
             }
+            cellVertIds.push_back(faceVertIds);
         }
+        o_cellFaces.push_back(cellVertIds);
     }
 }
 

@@ -16,7 +16,10 @@ public:
 
     void setInputFilepath(std::string filepath);
 
-    void genFractureUniform(const std::vector<vec3>& nodes, vec3 minCorner, vec3 maxCorner);
+    // generate fractures based on hard-coded Voronoi patterns
+    void genFractureUniformStatic();
+    // generate fractures based on dynamically placed Voronoi cells
+    void genFractureUniformDynamic(const std::vector<vec3>& nodes, vec3 minCorner, vec3 maxCorner);
 
 private:
     // Fracture simulation config

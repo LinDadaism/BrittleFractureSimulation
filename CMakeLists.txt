@@ -61,14 +61,14 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 # Voro++
 # ==============================================================================
 # List of headers locations
-# include_directories("voro/include")
+include_directories("voro/include")
 
-# # List of cpu sources
-# file(GLOB_RECURSE host_sources voro/src/*.cc)
+# List of cpu sources
+file(GLOB_RECURSE host_sources voro/src/*.cc)
 
-# add_library(voro++ STATIC ${host_sources})
+add_library(voro++ STATIC ${host_sources})
 
-# target_link_libraries(${PROJECT_NAME} PUBLIC voro++)
+target_link_libraries(${PROJECT_NAME} PUBLIC voro++)
 
 # ==============================================================================
 # CGAL
