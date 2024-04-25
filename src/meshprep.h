@@ -6,6 +6,20 @@
 #include "clipper.h"
 
 // Hard-coded 10 Voronoi cells as fracture pattern for Maya Plugin
+const static vector<Eigen::Vector3d> gPoints10 =
+{
+  Eigen::Vector3d(-0.0695318, -0.0872571, 0.215309),
+  Eigen::Vector3d(-0.242122, 0.175633, -0.459787),
+  Eigen::Vector3d(-0.382464, -0.491852, 0.480495),
+  Eigen::Vector3d(0.103244, 0.349015, 0.0440263),
+  Eigen::Vector3d(-0.448226, 0.216952, -0.236705),
+  Eigen::Vector3d(0.097456, 0.367117, -0.0303783),
+  Eigen::Vector3d(-0.318482, 0.0231078, 0.142635),
+  Eigen::Vector3d(0.0593644, 0.111092, 0.203777),
+  Eigen::Vector3d(-0.356605, 0.474539, -0.167495),
+  Eigen::Vector3d(0.410755, 0.111101, 0.279034)
+};
+
 const static AllCellVertices gCellVertices10   // Vertices of each Voronoi cell
 {
   {
