@@ -33,7 +33,7 @@
 
 #define VORO_LIB 1
 #if VORO_LIB
-    #include "voro++.hh"
+    #include "../../../BFX/voro/include/voro++.hh"
 #endif
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
