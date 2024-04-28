@@ -12,7 +12,8 @@ std::mutex patternMutex;
 
 Pattern::Pattern() {}
 
-Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e):o_cellVertices(v), o_cellFaces(f), o_cellEdges(e)
+Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e, Eigen::Vector3d minc, Eigen::Vector3d maxc):
+    o_cellVertices(v), o_cellFaces(f), o_cellEdges(e), minCorner(minc), maxCorner(maxc)
 {}
 
 std::vector<spCell> Pattern::getCells() {
@@ -466,6 +467,15 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
 //
 //    return results;
 //}
+////////////////////////////////////////////////////////////////////////////////
+
+// pre-fracture for partial fracture
+void preFracture(Compound& compound, Pattern& pattern, Compound& inside, Compound& outside) {
+
+    for (const auto& cell : pattern.getCells()) {
+
+    }
+}
 
 
 

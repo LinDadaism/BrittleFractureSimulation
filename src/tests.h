@@ -128,7 +128,7 @@ MeshConvex testFunc2(int cellIndex,
     buildSMfromVF(points, faces, tester_mesh);
     
     // generate 3d voronoi diagram
-    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    Pattern pattern(cellVertices, cellFaces, cellEdges, minCorner, maxCorner);
     pattern.createCellsfromVoro();
     Cell cell = *pattern.getCells()[cellIndex];
     
@@ -164,7 +164,7 @@ MeshConvex testFunc3(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
     calculateCentroid(tester, Eigen::Vector3d(0, 0, 0));
     
     // Construct Pattern from Voronoi Decomposition
-    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    Pattern pattern(cellVertices, cellFaces, cellEdges, minCorner, maxCorner);
     pattern.createCellsfromVoro();
     auto cells = pattern.getCells();
     
@@ -235,7 +235,7 @@ void testWelding(std::vector<MeshConvex>& clippedMeshConvex,
     clippedMeshConvex = allCubes; // for testing the cube
     
     // generate voronoi diagram
-    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    Pattern pattern(cellVertices, cellFaces, cellEdges, minCorner, maxCorner);
     pattern.createCellsfromVoro();
     
     for (auto& c : pattern.getCells()) {
@@ -323,7 +323,7 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
     }
     
     // generate voronoi diagram
-    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    Pattern pattern(cellVertices, cellFaces, cellEdges, minCorner, maxCorner);
     pattern.createCellsfromVoro();
 
     for (auto& cell : pattern.getCells()) {

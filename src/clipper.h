@@ -14,6 +14,7 @@
 #include <CGAL/Polygon_mesh_processing/measure.h>
 #include <CGAL/Polygon_mesh_processing/repair.h>
 #include <CGAL/Polygon_mesh_processing/clip.h>
+#include <CGAL/Polygon_mesh_processing/bbox.h>
 #include <CGAL/centroid.h>
 #include <CGAL/Rigid_triangle_mesh_collision_detection.h>
 #include <CGAL/Convex_hull_3/dual/halfspace_intersection_3.h>
@@ -91,7 +92,7 @@ class Pattern
 {
 public:
     Pattern();
-    Pattern(AllCellVertices, AllCellFaces, AllCellEdges);
+    Pattern(AllCellVertices, AllCellFaces, AllCellEdges, Eigen::Vector3d, Eigen::Vector3d);
     ~Pattern() {};
 
     void createCellsfromVoro();
@@ -110,6 +111,8 @@ private:
     AllCellEdges o_cellEdges;
     // data converted for mesh clipping and convex hull algorithm
     std::vector<spCell> cells;
+    Eigen::Vector3d minCorner; 
+    Eigen::Vector3d maxCorner;
     // possible data to be added 
     // 1. the center of the pattern or the bounding box of Pattern 
     // 2. transformation matrices to move the pattern around
@@ -151,6 +154,9 @@ std::vector<Compound> islandDetection(Compound& old_compound);
 
 // pipeline of fracture algorithm 
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern); 
+
+// pre-fracture for the partial fracture
+void preFracture(Compound& compound, Pattern& pattern, Compound& inside, Compound& outside);
 
 #if VORO_LIB
 void computeVoronoiCells(
