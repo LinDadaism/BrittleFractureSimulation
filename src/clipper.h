@@ -15,6 +15,7 @@
 #include <CGAL/Polygon_mesh_processing/repair.h>
 #include <CGAL/Polygon_mesh_processing/clip.h>
 #include <CGAL/Polygon_mesh_processing/bbox.h>
+#include <CGAL/Polygon_mesh_processing/orientation.h>
 #include <CGAL/centroid.h>
 #include <CGAL/Rigid_triangle_mesh_collision_detection.h>
 #include <CGAL/Convex_hull_3/dual/halfspace_intersection_3.h>
@@ -96,13 +97,17 @@ public:
     ~Pattern() {};
 
     void createCellsfromVoro();
-    std::vector<spCell> getCells();
-    AllCellVertices getVertices();
-    AllCellFaces getFaces();
-    int numCells();
+    std::vector<spCell> getCells() const;
+    AllCellVertices getVertices() const;
+    AllCellFaces getFaces() const;
+    Eigen::Vector3d getMin() const;
+    Eigen::Vector3d getMax() const;
+    int numCells() const;
 
     void setVertices(const AllCellVertices& verts);
     void setFaces(const AllCellFaces& faces);
+    void setMin(const Eigen::Vector3d m); 
+    void setMax(const Eigen::Vector3d m);
 
 private:
     // original data outputed from Voronoi function of libigl
@@ -156,7 +161,7 @@ std::vector<Compound> islandDetection(Compound& old_compound);
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern); 
 
 // pre-fracture for the partial fracture
-void preFracture(Compound& compound, Pattern& pattern, Compound& inside, Compound& outside);
+void preFracture(const Compound& compound, const Pattern& pattern, Compound& inside, Compound& outside);
 
 #if VORO_LIB
 void computeVoronoiCells(

@@ -16,20 +16,28 @@ Pattern::Pattern(AllCellVertices v, AllCellFaces f, AllCellEdges e, Eigen::Vecto
     o_cellVertices(v), o_cellFaces(f), o_cellEdges(e), minCorner(minc), maxCorner(maxc)
 {}
 
-std::vector<spCell> Pattern::getCells() {
+std::vector<spCell> Pattern::getCells() const {
     return cells;
 }
 
-AllCellVertices Pattern::getVertices() {
+AllCellVertices Pattern::getVertices() const {
     return o_cellVertices;
 }
 
-AllCellFaces Pattern::getFaces() {
+AllCellFaces Pattern::getFaces() const {
     return o_cellFaces;
 }
 
-int Pattern::numCells() {
+int Pattern::numCells() const {
     return cells.size();
+}
+
+Eigen::Vector3d Pattern::getMin() const {
+    return minCorner;
+}
+
+Eigen::Vector3d Pattern::getMax() const {
+    return maxCorner;
 }
 
 void Pattern::setVertices(const AllCellVertices& verts) {
@@ -64,6 +72,13 @@ void Pattern::setFaces(const AllCellFaces& faces) {
         }
         o_cellFaces.push_back(cellVertIds);
     }
+}
+
+void Pattern::setMin(const Eigen::Vector3d m) {
+    minCorner = m; 
+}
+void Pattern::setMax(const Eigen::Vector3d m) {
+    maxCorner = m;
 }
 
 void Pattern::createCellsfromVoro() {
@@ -260,11 +275,11 @@ void workerClipAABB(int cellID, int cell_num, Compound& compound, Pattern& patte
             // double check that they actually intersected 
             if (volume > 0) {
                 buildVFfromSM(convexm, vertices, faces);
+                spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
+                calculateCentroid(*result, Eigen::Vector3d(0, 0, 0));
+                pattern.getCells()[cellID]->convexes.push_back(result);
             }
-            spConvex result(new MeshConvex{ vertices, faces, convexm, {0, 0, 0}, volume });
-            calculateCentroid(*result, compCentroid);
-
-            pattern.getCells()[cellID]->convexes.push_back(result);
+            
         }
     }
 }
@@ -470,20 +485,94 @@ std::vector<Compound> islandDetection(Compound& old_compound) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // pre-fracture for partial fracture
-void preFracture(Compound& compound, Pattern& pattern, Compound& inside, Compound& outside) {
-
-    for (const auto& cell : pattern.getCells()) {
-
+void preFracture(const Compound& compound, const Pattern& pattern, Compound& inside, Compound& outside) {
+    ///////////////////////////////////////////////////
+    // first create a cube sm for a given pattern
+    Surface_mesh sm; 
+    auto mi = pattern.getMin(); 
+    auto ma = pattern.getMax();
+    // put in all vertices 
+    sm.add_vertex(Point_3(mi.x(), mi.y(), mi.z()));
+    sm.add_vertex(Point_3(mi.x(), mi.y(), ma.z()));
+    sm.add_vertex(Point_3(mi.x(), ma.y(), mi.z()));
+    sm.add_vertex(Point_3(mi.x(), ma.y(), ma.z()));
+    sm.add_vertex(Point_3(ma.x(), mi.y(), mi.z()));
+    sm.add_vertex(Point_3(ma.x(), mi.y(), ma.z()));
+    sm.add_vertex(Point_3(ma.x(), ma.y(), mi.z()));
+    sm.add_vertex(Point_3(ma.x(), ma.y(), ma.z()));
+    // put in all faces 
+    vector<vector<int>> faces{ {0,6,4},{0,2,6},{0,3,2},{0,1,3},
+                               {2,7,6},{2,3,7},{4,6,7},{4,7,5},
+                               {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
+    for (const auto& f : faces) {
+        std::vector<Vertex_descriptor> indices;
+        for (int i : f) {
+            indices.push_back(Vertex_descriptor(i));
+        }
+        sm.add_face(indices);
     }
+    // triangualte all non-triangle faces
+    PMP::triangulate_faces(sm);
+    ///////////////////////////////////////////////////
+    ABtree tree;
+    tree.add_mesh(sm, PMP::parameters::apply_per_connected_component(false));
+    for (auto& com : compound.convexes) tree.add_mesh(com->convexMesh, PMP::parameters::apply_per_connected_component(false));
+    std::unordered_set<int> intersected;
+    for (auto& intersection : tree.get_all_intersections_and_inclusions(0)) {
+        intersected.insert(intersection.first - 1);
+    }
+    for (int i = 0; i < compound.convexes.size(); ++i) {
+        if (intersected.find(i) != intersected.end()) {
+            // build inside piece first 
+            auto copyMesh = compound.convexes[i]->convexMesh; 
+            auto copyCell = sm;
+            PMP::corefine_and_compute_intersection(copyMesh, copyCell, copyMesh);
+            copyMesh.collect_garbage();
+            double volume = PMP::volume(copyMesh);
+            std::vector<Eigen::Vector3d> verticesInside;
+            std::vector<std::vector<int>> facesInside;
+            // double check that they actually intersected 
+            if (volume > 0) {
+                buildVFfromSM(copyMesh, verticesInside, facesInside);
+                spConvex convexInside(new MeshConvex{ verticesInside, facesInside, copyMesh, {0, 0, 0}, volume });
+                calculateCentroid(*convexInside, Eigen::Vector3d(0, 0, 0));
+                inside.convexes.push_back(convexInside);
+            }
+            // build outside piece second 
+            copyMesh = compound.convexes[i]->convexMesh;
+            copyCell = sm;
+            PMP::reverse_face_orientations(copyCell);
+            PMP::corefine_and_compute_intersection(copyMesh, copyCell, copyMesh);
+            copyMesh.collect_garbage();
+            volume = PMP::volume(copyMesh);
+            std::vector<Eigen::Vector3d> verticesOutside;
+            std::vector<std::vector<int>> facesOutside;
+            // double check that they actually intersected 
+            if (volume > 0) {
+                buildVFfromSM(copyMesh, verticesOutside, facesOutside);
+                spConvex convexOutside(new MeshConvex{ verticesOutside, facesOutside, copyMesh, {0, 0, 0}, volume });
+                calculateCentroid(*convexOutside, Eigen::Vector3d(0, 0, 0));
+                outside.convexes.push_back(convexOutside);
+            }
+        }
+        else {
+            outside.convexes.push_back(compound.convexes[i]);
+        }
+    }
+    inside.centroid = calculateCentroidCompound(inside.convexes);
+    outside.centroid = calculateCentroidCompound(outside.convexes);
 }
 
 
 
 // The core fracture algorihm pipeline  
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
+    // pre-fracture 
+    Compound inside, outside;
+    preFracture(compound, pattern, inside, outside);
     // scale up each convex a little bit for intersection 
     // critical for island detection!!!!
-    for (auto& c : compound.convexes) {
+    for (auto& c : inside.convexes) {
         for (size_t i = 0; i < c->vertices.size(); i++) {
             for (size_t i = 0; i < c->vertices.size(); i++) {
                 c->vertices[i] += -c->centroid;
@@ -497,10 +586,23 @@ std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
         buildSMfromVF(c->vertices, c->faces, newmesh);
         c->convexMesh = newmesh;
     }
-    //TODO: alignmnet First Step: Alignment
-    
+    // scale up outside a bit as well for its island detection
+    for (auto& c : outside.convexes) {
+        for (size_t i = 0; i < c->vertices.size(); i++) {
+            for (size_t i = 0; i < c->vertices.size(); i++) {
+                c->vertices[i] += -c->centroid;
+            }
+            c->vertices[i] *= 1.01; // might need to be adjust for different mesh
+            for (size_t i = 0; i < c->vertices.size(); i++) {
+                c->vertices[i] += c->centroid;
+            }
+        }
+        Surface_mesh newmesh;
+        buildSMfromVF(c->vertices, c->faces, newmesh);
+        c->convexMesh = newmesh;
+    }
     //Second Step: Intersection 
-    clipAABB(compound, pattern);
+    clipAABB(inside, pattern);
     //Third Step: Welding
     weldforPattern(pattern);
     //Fourth Step: Compound Formation + Island Detection
@@ -508,9 +610,16 @@ std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
     for (const auto& cell : pattern.getCells()) {
         if (cell->convexes.size() > 0) {
             auto cellCompounds = islandDetection(Compound{ cell->convexes });
-            for (const auto& c : cellCompounds) fractured.push_back(c);
-            //fractured.push_back(Compound{ cell->convexes });
+            for (auto& c : cellCompounds) {
+                c.centroid = calculateCentroidCompound(c.convexes);
+                fractured.push_back(c);
+            }
         }
+    }
+    auto outsideCompounds = islandDetection(outside);
+    for (auto& outsidecom : outsideCompounds) {
+        outsidecom.centroid = calculateCentroidCompound(outsidecom.convexes);
+        fractured.push_back(outsidecom);
     }
     return fractured;
 }

@@ -589,6 +589,10 @@ int main(int argc, char *argv[])
   // Get the mesh's bounding box
   minCorner = V.colwise().minCoeff();
   maxCorner = V.colwise().maxCoeff();
+  std::cout << "Pattern min: \n" << minCorner << std::endl;
+  std::cout << "Pattern max: \n" << maxCorner << std::endl;
+
+  minCorner += Eigen::Vector3d(0, 0.3, 0);
 
 #if VORO_LIB
   generateRandomPoints(gNumPoints, gPoints);
