@@ -49,7 +49,7 @@ Eigen::MatrixXi TT;                             // #TT by 4 matrix for tet face 
 Eigen::MatrixXi TF;                             // #TF by 3 matrix for triangle face indices ('f', else `boundary_facets` is called on TT)
 
 // Voronoi diagram
-int gNumPoints = 10;
+int gNumPoints = 100;
 
 vector<Eigen::Vector3d> gPoints;                 // cell nodes
 vector<vector<Eigen::Vector3d>> gCellVertices;   // Vertices of each Voronoi cell

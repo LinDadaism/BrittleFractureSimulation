@@ -363,7 +363,7 @@ void weldforPattern(Pattern& pattern) {
         for (auto& convex : cell->convexes) {
             sum_volume += convex->volume;
         }
-        if (total_volume - sum_volume < DBL_EPSILON) {
+        if (sum_volume - total_volume >= 0) {
             // clear all convex pieces and replace with 1 piece
             // of the same shape and size of the cell
             cell->convexes.clear();
