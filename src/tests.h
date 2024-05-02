@@ -49,7 +49,7 @@ Eigen::MatrixXi TT;                             // #TT by 4 matrix for tet face 
 Eigen::MatrixXi TF;                             // #TF by 3 matrix for triangle face indices ('f', else `boundary_facets` is called on TT)
 
 // Voronoi diagram
-int gNumPoints = 10;
+int gNumPoints = 100;
 
 vector<Eigen::Vector3d> gPoints;                 // cell nodes
 vector<vector<Eigen::Vector3d>> gCellVertices;   // Vertices of each Voronoi cell
@@ -128,7 +128,7 @@ MeshConvex testFunc2(int cellIndex,
     buildSMfromVF(points, faces, tester_mesh);
     
     // generate 3d voronoi diagram
-    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    Pattern pattern(cellVertices, cellFaces, cellEdges, minCorner, maxCorner);
     pattern.createCellsfromVoro();
     Cell cell = *pattern.getCells()[cellIndex];
     
@@ -164,7 +164,7 @@ MeshConvex testFunc3(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
     calculateCentroid(tester, Eigen::Vector3d(0, 0, 0));
     
     // Construct Pattern from Voronoi Decomposition
-    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    Pattern pattern(cellVertices, cellFaces, cellEdges, minCorner, maxCorner);
     pattern.createCellsfromVoro();
     auto cells = pattern.getCells();
     
@@ -235,7 +235,7 @@ void testWelding(std::vector<MeshConvex>& clippedMeshConvex,
     clippedMeshConvex = allCubes; // for testing the cube
     
     // generate voronoi diagram
-    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    Pattern pattern(cellVertices, cellFaces, cellEdges, minCorner, maxCorner);
     pattern.createCellsfromVoro();
     
     for (auto& c : pattern.getCells()) {
@@ -323,7 +323,7 @@ void testIsland(std::vector<MeshConvex>& clippedMeshConvex,
     }
     
     // generate voronoi diagram
-    Pattern pattern(cellVertices, cellFaces, cellEdges);
+    Pattern pattern(cellVertices, cellFaces, cellEdges, minCorner, maxCorner);
     pattern.createCellsfromVoro();
 
     for (auto& cell : pattern.getCells()) {
@@ -364,7 +364,7 @@ void testPipeline(const std::string& filePath,
     // Some of the original convex hulls might be overlapping so this is just an approximate.
     Eigen::Vector3d centroid = calculateCentroidCompound(convexes);
     for (auto& com : convexes) {
-        calculateCentroid(*com, Eigen::Vector3d(0));
+        calculateCentroid(*com, Eigen::Vector3d(0, 0, 0));
     }
     Compound original{convexes, centroid};
     
