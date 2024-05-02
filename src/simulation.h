@@ -7,7 +7,7 @@ class Simulation
 public:
     Simulation();
     Simulation(std::string filepath);
-    Simulation(vec3 pos, float r, float amt, std::string filepath);
+    Simulation(Eigen::Vector3d pos, float r, float amt, std::string filepath);
     ~Simulation() {};
 
     std::string getInputFilepath();
@@ -19,11 +19,11 @@ public:
     // generate fractures based on hard-coded Voronoi patterns
     void genFractureUniformStatic();
     // generate fractures based on dynamically placed Voronoi cells
-    void genFractureUniformDynamic(const std::vector<vec3>& nodes, vec3 minCorner, vec3 maxCorner);
+    void genFractureUniformDynamic(const std::vector<Eigen::Vector3d>& nodes, Eigen::Vector3d minCorner, Eigen::Vector3d maxCorner);
 
 private:
     // Fracture simulation config
-    vec3 impactPos;
+    Eigen::Vector3d impactPos;
     float impactRadius = -1.f;      // default -1 means full-body fracture
     float explodeAmt = 1.f;         // distance between shards
 

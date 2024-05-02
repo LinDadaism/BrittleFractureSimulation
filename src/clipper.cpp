@@ -519,7 +519,7 @@ void preFracture(const Compound& compound, const Pattern& pattern, Compound& ins
     sm.add_vertex(Point_3(ma.x(), ma.y(), mi.z()));
     sm.add_vertex(Point_3(ma.x(), ma.y(), ma.z()));
     // put in all faces 
-    vector<vector<int>> faces{ {0,6,4},{0,2,6},{0,3,2},{0,1,3},
+    std::vector<std::vector<int>> faces{ {0,6,4},{0,2,6},{0,3,2},{0,1,3},
                                {2,7,6},{2,3,7},{4,6,7},{4,7,5},
                                {0,4,5},{0,5,1},{1,5,7},{1,7,3} };
     for (const auto& f : faces) {
@@ -654,9 +654,9 @@ std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern) {
 
 #if VORO_LIB
 void computeVoronoiCells(
-    const std::vector<vec3>& points,
-    vec3 minCorner,
-    vec3 maxCorner,
+    const std::vector<Eigen::Vector3d>& points,
+    Eigen::Vector3d minCorner,
+    Eigen::Vector3d maxCorner,
     AllCellVertices& cellVertices,
     AllCellFaces& cellFaces,
     AllCellEdges& cellEdges
@@ -686,8 +686,8 @@ void computeVoronoiCells(
     double x, y, z;
 
     if (cl.start()) do if (con.compute_cell(c, cl)) {
-        vector<double> cVerts;
-        vector<int> neigh, fVerts;
+        std::vector<double> cVerts;
+        std::vector<int> neigh, fVerts;
 
         cl.pos(x, y, z);
         c.vertices(x, y, z, cVerts); // returns a vector of triplets (x,y,z)
@@ -716,17 +716,17 @@ void computeVoronoiCells(
         cout << "\n" << endl;
 #endif
         // Process vertices
-        vector<Eigen::Vector3d> verts;
+        std::vector<Eigen::Vector3d> verts;
         for (int i = 0; i < cVerts.size(); i += 3) {
             verts.push_back(Eigen::Vector3d(cVerts[i], cVerts[i + 1], cVerts[i + 2]));
         }
 
         // Process cell faces and edges
-        vector<vector<int>> faces; // faces<face vertex indices>
-        vector<Edge> edges;
+        std::vector<std::vector<int>> faces; // faces<face vertex indices>
+        std::vector<Edge> edges;
         for (int i = 0; i < fVerts.size(); i += fVerts[i] + 1) {
             int n = fVerts[i]; // Number of vertices for this face
-            vector<int> face;
+            std::vector<int> face;
 
             for (int k = 1; k <= n; ++k) {
                 face.push_back(fVerts[i + k]);

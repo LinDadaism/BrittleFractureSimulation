@@ -9,7 +9,7 @@ Simulation::Simulation(std::string filepath) :
 {
 }
 
-Simulation::Simulation(vec3 pos, float r, float amt, std::string filepath) :
+Simulation::Simulation(Eigen::Vector3d pos, float r, float amt, std::string filepath) :
 	impactPos(pos), impactRadius(r), explodeAmt(amt),
 	coacdMeshFilepath(filepath)
 {
@@ -39,6 +39,8 @@ void Simulation::genFractureUniformStatic()
 {
     pattern.setVertices(gCellVertices10);
     pattern.setFaces(gCellFaces10);
+    pattern.setMin(Eigen::Vector3d(-0.5, -0.5, -0.5)); // TODO: update if pre-defined pattern changes
+    pattern.setMax(Eigen::Vector3d(0.5, 0.5, 0.5));
     pattern.createCellsfromVoro();
     
     auto convexes = readOBJByComponents(coacdMeshFilepath);
@@ -49,7 +51,8 @@ void Simulation::genFractureUniformStatic()
     fractureShards = fracturePipeline(original, pattern);
 }
 
-void Simulation::genFractureUniformDynamic(const std::vector<vec3>& nodes, vec3 minCorner, vec3 maxCorner)
+void Simulation::genFractureUniformDynamic(const std::vector<Eigen::Vector3d>& nodes, 
+    Eigen::Vector3d minCorner, Eigen::Vector3d maxCorner)
 {
     AllCellVertices cellVertices;   // Vertices of each Voronoi cell
     AllCellFaces cellFaces;         // Faces of each Voronoi cell represented by vertex indices
@@ -58,6 +61,9 @@ void Simulation::genFractureUniformDynamic(const std::vector<vec3>& nodes, vec3 
 
     pattern.setVertices(cellVertices);
     pattern.setFaces(cellFaces);
+    pattern.setMin(minCorner);
+    pattern.setMax(maxCorner);
+
     pattern.createCellsfromVoro();
 
     auto convexes = readOBJByComponents(coacdMeshFilepath);

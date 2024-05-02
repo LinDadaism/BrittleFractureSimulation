@@ -558,7 +558,7 @@ int main(int argc, char *argv[])
     //                         Load mesh                                   //
     /////////////////////////////////////////////////////////////////////////
     //string filePath = "../assets/obj/bunny.obj";//*"../assets/obj/cube.obj"; *//*".. /assets/bunny.off";*/ // "../assets/Armadillo.ply";
-    string filePath = "../assets/obj/homer.obj";
+    string filePath = "../../../BFX/assets/obj/homer.obj";
     igl::readOBJ(filePath, V, F);
     //igl::readOFF(filePath, V, F);
      
@@ -570,8 +570,8 @@ int main(int argc, char *argv[])
 
 #if COCAD
   // run CoACD executable to decompose surface mesh into convex hulls
-  LPCSTR applicationName = "..\\coacd.exe";
-  char commandLine[] = "-i ..\\assets\\obj\\homer.obj -o ..\\assets\\results\\homer_out.obj -ro ..\\assets\\results\\remesh.obj";
+  LPCSTR applicationName = "..\\..\\..\\BFX\\coacd.exe";
+  char commandLine[] = "-i ..\\..\\..\\BFX\\assets\\obj\\homer.obj -o ..\\..\\..\\BFX\\assets\\results\\homer_out.obj -ro ..\\..\\..\\BFX\\assets\\results\\remesh.obj";
   if (executeCommand(applicationName, commandLine))
   {
       cout << "CoACD executed successfully!" << endl;
@@ -599,11 +599,7 @@ int main(int argc, char *argv[])
 
 #if VORO_LIB
   generateRandomPoints(gNumPoints, gPoints);
-  convertEigenToVec(gPoints, gPointsVec);
-  computeVoronoiCells(gPointsVec,
-      vec3(minCorner.x(), minCorner.y(), minCorner.z()),
-      vec3(maxCorner.x(), maxCorner.y(), maxCorner.z()),
-      gCellVertices, gCellFaces, gCellEdges);
+  computeVoronoiCells(gPoints, minCorner, maxCorner, gCellVertices, gCellFaces, gCellEdges);
 #endif
 
   /////////////////////////////////////////////////////////////////////////
@@ -637,11 +633,7 @@ int main(int argc, char *argv[])
               {
 #if VORO_LIB
                   generateRandomPoints(gNumPoints, gPoints);
-                  convertEigenToVec(gPoints, gPointsVec);
-                  computeVoronoiCells(gPointsVec,
-                      vec3(minCorner.x(), minCorner.y(), minCorner.z()),
-                      vec3(maxCorner.x(), maxCorner.y(), maxCorner.z()),
-                      gCellVertices, gCellFaces, gCellEdges);
+                  computeVoronoiCells(gPoints, minCorner, maxCorner, gCellVertices, gCellFaces, gCellEdges);
 #endif
                   key_down_tet(viewer, gCurrKey, 0);
               }

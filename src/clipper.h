@@ -32,7 +32,6 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#include "vec.h"
 
 #define VORO_LIB 1
 #if VORO_LIB
@@ -169,9 +168,9 @@ void preFracture(const Compound& compound, const Pattern& pattern, Compound& ins
 
 #if VORO_LIB
 void computeVoronoiCells(
-    const vector<vec3>& points,
-    vec3 minCorner,
-    vec3 maxCorner,
+    const std::vector<Eigen::Vector3d>& points,
+    Eigen::Vector3d minCorner,
+    Eigen::Vector3d maxCorner,
     AllCellVertices& cellVertices,  // TODO: use Eigen Matrix
     AllCellFaces& cellFaces,        // Each cell's faces by vertex indices
     AllCellEdges& cellEdges         // Each cell's edges
