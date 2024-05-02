@@ -545,15 +545,12 @@ void preFracture(const Compound& compound, const Pattern& pattern, Compound& ins
         inside = compound;
         return;
     }
-    ABtree tree;
-    tree.add_mesh(sm, PMP::parameters::apply_per_connected_component(false));
-    for (auto& com : compound.convexes) tree.add_mesh(com->convexMesh, PMP::parameters::apply_per_connected_component(false));
-    std::unordered_set<int> intersected;
-    for (auto& intersection : tree.get_all_intersections_and_inclusions(0)) {
-        intersected.insert(intersection.first - 1);
-    }
     for (int i = 0; i < compound.convexes.size(); ++i) {
-        if (intersected.find(i) != intersected.end()) {
+        auto convexCentroid = compound.convexes[i]->centroid;
+        // if centroid of convex is within the bounding box of the pattern
+        if (convexCentroid.x() >= pattern.getMin().x() && convexCentroid.x() <= pattern.getMax().x() &&
+            convexCentroid.y() >= pattern.getMin().y() && convexCentroid.y() <= pattern.getMax().y() &&
+            convexCentroid.z() >= pattern.getMin().z() && convexCentroid.z() <= pattern.getMax().z()) {
             // build inside piece first 
             auto copyMesh = compound.convexes[i]->convexMesh; 
             auto copyCell = sm;
