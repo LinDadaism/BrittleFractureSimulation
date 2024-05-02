@@ -364,7 +364,7 @@ void testPipeline(const std::string& filePath,
     // Some of the original convex hulls might be overlapping so this is just an approximate.
     Eigen::Vector3d centroid = calculateCentroidCompound(convexes);
     for (auto& com : convexes) {
-        calculateCentroid(*com, Eigen::Vector3d(0));
+        calculateCentroid(*com, Eigen::Vector3d(0, 0, 0));
     }
     Compound original{convexes, centroid};
     

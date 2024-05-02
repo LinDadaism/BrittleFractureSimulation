@@ -5,6 +5,7 @@
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Plane_3.h>
+#include <CGAL/Bbox_3.h>
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/Surface_mesh.h>
 #include <CGAL/Simple_cartesian.h>
@@ -144,6 +145,9 @@ void clipAABB(Compound& compound, Pattern& pattern);
 
 // weld process for each cell in the pattern
 void weldforPattern(Pattern& pattern);
+
+// calculate the bounding box of any compound
+void calculateBBox(const Compound& compound, Eigen::Vector3d& minCorner, Eigen::Vector3d& maxCorner);
 
 // create a plane from 3 points
 Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vector3d p3);

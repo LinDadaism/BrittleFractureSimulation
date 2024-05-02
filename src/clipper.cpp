@@ -163,6 +163,24 @@ void translateMesh(MeshConvex& mesh, Eigen::Vector3d direction, double scale) {
         mesh.vertices[i] += d * scale;
     }
 }
+
+void calculateBBox(const Compound& compound, Eigen::Vector3d& minCorner, Eigen::Vector3d& maxCorner) {
+    if (compound.convexes.size() < 1) {
+        std::cerr << "Compound is empty" << std::endl;
+    }
+    minCorner = Eigen::Vector3d(INFINITY, INFINITY, INFINITY);
+    maxCorner = Eigen::Vector3d(-INFINITY, -INFINITY, -INFINITY);
+    for (const auto& convex : compound.convexes) {
+        auto box = PMP::bbox(convex->convexMesh);
+        minCorner[0] = min(minCorner[0], box.xmin());
+        minCorner[1] = min(minCorner[1], box.ymin());
+        minCorner[2] = min(minCorner[2], box.zmin());
+        maxCorner[0] = max(maxCorner[0], box.xmax());
+        maxCorner[1] = max(maxCorner[1], box.ymax());
+        maxCorner[2] = max(maxCorner[2], box.zmax());
+    }
+}
+
 /*previous code of mesh clipping from scratch, temporarily saved 
 * for possible future reference 
 */
@@ -514,6 +532,19 @@ void preFracture(const Compound& compound, const Pattern& pattern, Compound& ins
     // triangualte all non-triangle faces
     PMP::triangulate_faces(sm);
     ///////////////////////////////////////////////////
+    // calculate the bounding box of the compound 
+    Eigen::Vector3d compBBoxMin; 
+    Eigen::Vector3d compBBoxMax; 
+    calculateBBox(compound, compBBoxMin, compBBoxMax);
+    if (pattern.getMin().x() <= compBBoxMin.x() &&
+        pattern.getMin().y() <= compBBoxMin.y() &&
+        pattern.getMin().z() <= compBBoxMin.z() &&
+        pattern.getMax().x() >= compBBoxMax.x() &&
+        pattern.getMax().y() >= compBBoxMax.y() &&
+        pattern.getMax().z() >= compBBoxMax.z()) {
+        inside = compound;
+        return;
+    }
     ABtree tree;
     tree.add_mesh(sm, PMP::parameters::apply_per_connected_component(false));
     for (auto& com : compound.convexes) tree.add_mesh(com->convexMesh, PMP::parameters::apply_per_connected_component(false));

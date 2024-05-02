@@ -592,7 +592,10 @@ int main(int argc, char *argv[])
   std::cout << "Pattern min: \n" << minCorner << std::endl;
   std::cout << "Pattern max: \n" << maxCorner << std::endl;
 
-  minCorner += Eigen::Vector3d(0, 0.3, 0);
+  //minCorner += Eigen::Vector3d(0, 0.3, 0);
+  //minCorner -= Eigen::Vector3d(0.1, 0.1, 0.1);
+  //maxCorner += Eigen::Vector3d(0.1, 0.1, 0.1);
+
 
 #if VORO_LIB
   generateRandomPoints(gNumPoints, gPoints);
