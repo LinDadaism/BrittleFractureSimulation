@@ -5,6 +5,7 @@
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Plane_3.h>
+#include <CGAL/Bbox_3.h>
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/Surface_mesh.h>
 #include <CGAL/Simple_cartesian.h>
@@ -14,6 +15,8 @@
 #include <CGAL/Polygon_mesh_processing/measure.h>
 #include <CGAL/Polygon_mesh_processing/repair.h>
 #include <CGAL/Polygon_mesh_processing/clip.h>
+#include <CGAL/Polygon_mesh_processing/bbox.h>
+#include <CGAL/Polygon_mesh_processing/orientation.h>
 #include <CGAL/centroid.h>
 #include <CGAL/Rigid_triangle_mesh_collision_detection.h>
 #include <CGAL/Convex_hull_3/dual/halfspace_intersection_3.h>
@@ -91,17 +94,21 @@ class Pattern
 {
 public:
     Pattern();
-    Pattern(AllCellVertices, AllCellFaces, AllCellEdges);
+    Pattern(AllCellVertices, AllCellFaces, AllCellEdges, Eigen::Vector3d, Eigen::Vector3d);
     ~Pattern() {};
 
     void createCellsfromVoro();
-    std::vector<spCell> getCells();
-    AllCellVertices getVertices();
-    AllCellFaces getFaces();
-    int numCells();
+    std::vector<spCell> getCells() const;
+    AllCellVertices getVertices() const;
+    AllCellFaces getFaces() const;
+    Eigen::Vector3d getMin() const;
+    Eigen::Vector3d getMax() const;
+    int numCells() const;
 
     void setVertices(const AllCellVertices& verts);
     void setFaces(const AllCellFaces& faces);
+    void setMin(const Eigen::Vector3d m); 
+    void setMax(const Eigen::Vector3d m);
 
 private:
     // original data outputed from Voronoi function of libigl
@@ -110,6 +117,8 @@ private:
     AllCellEdges o_cellEdges;
     // data converted for mesh clipping and convex hull algorithm
     std::vector<spCell> cells;
+    Eigen::Vector3d minCorner; 
+    Eigen::Vector3d maxCorner;
     // possible data to be added 
     // 1. the center of the pattern or the bounding box of Pattern 
     // 2. transformation matrices to move the pattern around
@@ -137,6 +146,9 @@ void clipAABB(Compound& compound, Pattern& pattern);
 // weld process for each cell in the pattern
 void weldforPattern(Pattern& pattern);
 
+// calculate the bounding box of any compound
+void calculateBBox(const Compound& compound, Eigen::Vector3d& minCorner, Eigen::Vector3d& maxCorner);
+
 // create a plane from 3 points
 Eigen::Vector4d createPlane(Eigen::Vector3d p1, Eigen::Vector3d p2, Eigen::Vector3d p3);
 // the boring bit - injecting a hash specialisation into the std:: namespace
@@ -151,6 +163,9 @@ std::vector<Compound> islandDetection(Compound& old_compound);
 
 // pipeline of fracture algorithm 
 std::vector<Compound> fracturePipeline(Compound& compound, Pattern& pattern); 
+
+// pre-fracture for the partial fracture
+void preFracture(const Compound& compound, const Pattern& pattern, Compound& inside, Compound& outside);
 
 #if VORO_LIB
 void computeVoronoiCells(
